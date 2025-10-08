@@ -1,0 +1,30 @@
+{
+  "name": "@nilecare/api-gateway",
+  "version": "1.0.0",
+  "description": "API Gateway configuration and management",
+  "main": "index.js",
+  "scripts": {
+    "dev": "kong start --conf kong.yml",
+    "start": "kong start",
+    "stop": "kong stop",
+    "reload": "kong reload",
+    "validate": "kong config -c kong.yml validate",
+    "test": "jest",
+    "deploy": "kong reload --conf kong.yml"
+  },
+  "dependencies": {
+    "kong": "^3.4.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "@types/node": "^20.10.0"
+  },
+  "keywords": [
+    "kong",
+    "api-gateway",
+    "microservices",
+    "healthcare"
+  ],
+  "author": "NileCare Team",
+  "license": "MIT"
+}

@@ -1,0 +1,141 @@
+import passport from 'passport';
+import { Strategy as JwtStrategy, ExtractJwt } from 'passport-jwt';
+import { Strategy as LocalStrategy } from 'passport-local';
+import { OAuth2Strategy } from 'passport-oauth2';
+import { UserService } from '../services/UserService';
+import { AuthService } from '../services/AuthService';
+import { logger } from '../utils/logger';
+
+const userService = new UserService();
+const authService = new AuthService();
+
+export const setupPassportStrategies = () => {
+  // JWT Strategy
+  passport.use(new JwtStrategy({
+    jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+    secretOrKey: process.env.JWT_SECRET || 'nilecare-jwt-secret',
+    algorithms: ['HS256'],
+    issuer: process.env.JWT_ISSUER || 'nilecare-auth',
+    audience: process.env.JWT_AUDIENCE || 'nilecare-api'
+  }, async (payload, done) => {
+    try {
+      const user = await userService.getUserById(payload.sub);
+      if (user && user.isActive) {
+        return done(null, {
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          organizationId: user.organizationId,
+          permissions: user.permissions,
+          mfaVerified: payload.mfaVerified || false
+        });
+      }
+      return done(null, false);
+    } catch (error) {
+      logger.error('JWT Strategy error:', error);
+      return done(error, false);
+    }
+  }));
+
+  // Local Strategy (Username/Password)
+  passport.use(new LocalStrategy({
+    usernameField: 'email',
+    passwordField: 'password',
+    session: false
+  }, async (email, password, done) => {
+    try {
+      const result = await authService.authenticateUser(email, password);
+      if (result.success && result.user) {
+        return done(null, {
+          id: result.user.id,
+          email: result.user.email,
+          role: result.user.role,
+          organizationId: result.user.organizationId,
+          permissions: result.user.permissions,
+          mfaRequired: result.user.mfaEnabled,
+          mfaVerified: false
+        });
+      }
+      return done(null, false, { message: result.message });
+    } catch (error) {
+      logger.error('Local Strategy error:', error);
+      return done(error, false);
+    }
+  }));
+
+  // OAuth2 Strategy
+  passport.use('oauth2', new OAuth2Strategy({
+    authorizationURL: process.env.OAUTH2_AUTH_URL || 'https://oauth.provider.com/oauth/authorize',
+    tokenURL: process.env.OAUTH2_TOKEN_URL || 'https://oauth.provider.com/oauth/token',
+    clientID: process.env.OAUTH2_CLIENT_ID || 'nilecare-client',
+    clientSecret: process.env.OAUTH2_CLIENT_SECRET || 'nilecare-secret',
+    callbackURL: process.env.OAUTH2_CALLBACK_URL || 'http://localhost:3001/auth/oauth2/callback',
+    scope: ['profile', 'email', 'openid']
+  }, async (accessToken, refreshToken, profile, done) => {
+    try {
+      // Exchange OAuth2 profile for internal user
+      const user = await authService.oauth2Callback(profile, accessToken, refreshToken);
+      if (user) {
+        return done(null, user);
+      }
+      return done(null, false);
+    } catch (error) {
+      logger.error('OAuth2 Strategy error:', error);
+      return done(error, false);
+    }
+  }));
+
+  // OpenID Connect Strategy (using OAuth2 as base)
+  passport.use('oidc', new OAuth2Strategy({
+    authorizationURL: process.env.OIDC_AUTH_URL || 'https://oidc.provider.com/oauth/authorize',
+    tokenURL: process.env.OIDC_TOKEN_URL || 'https://oidc.provider.com/oauth/token',
+    clientID: process.env.OIDC_CLIENT_ID || 'nilecare-oidc-client',
+    clientSecret: process.env.OIDC_CLIENT_SECRET || 'nilecare-oidc-secret',
+    callbackURL: process.env.OIDC_CALLBACK_URL || 'http://localhost:3001/auth/oidc/callback',
+    scope: ['openid', 'profile', 'email']
+  }, async (accessToken, refreshToken, profile, done) => {
+    try {
+      // Exchange OIDC profile for internal user
+      const user = await authService.oidcCallback(profile, accessToken, refreshToken);
+      if (user) {
+        return done(null, user);
+      }
+      return done(null, false);
+    } catch (error) {
+      logger.error('OIDC Strategy error:', error);
+      return done(error, false);
+    }
+  }));
+
+  // Serialize user for session
+  passport.serializeUser((user: any, done) => {
+    done(null, {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      organizationId: user.organizationId
+    });
+  });
+
+  // Deserialize user from session
+  passport.deserializeUser(async (userData: any, done) => {
+    try {
+      const user = await userService.getUserById(userData.id);
+      if (user && user.isActive) {
+        return done(null, {
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          organizationId: user.organizationId,
+          permissions: user.permissions
+        });
+      }
+      return done(null, false);
+    } catch (error) {
+      logger.error('Deserialize user error:', error);
+      return done(error, false);
+    }
+  });
+
+  logger.info('Passport strategies configured successfully');
+};

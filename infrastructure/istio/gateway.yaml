@@ -1,0 +1,281 @@
+# =====================================================
+# Istio Gateway Configuration
+# Purpose: Ingress gateway for external traffic
+# Sudan-specific: TLS certificates for nilecare.sd domain
+# =====================================================
+
+# Istio Gateway (Entry Point)
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: nilecare-gateway
+  namespace: infrastructure
+  labels:
+    app: istio-ingressgateway
+    region: sudan
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  # HTTPS (Primary)
+  - port:
+      number: 443
+      name: https
+      protocol: HTTPS
+    tls:
+      mode: SIMPLE
+      credentialName: nilecare-tls-cert
+      minProtocolVersion: TLSV1_3
+      cipherSuites:
+      - TLS_AES_256_GCM_SHA384
+      - TLS_CHACHA20_POLY1305_SHA256
+      - TLS_AES_128_GCM_SHA256
+    hosts:
+    - "api.nilecare.sd"
+    - "*.nilecare.sd"
+  
+  # HTTP (Redirect to HTTPS)
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "api.nilecare.sd"
+    - "*.nilecare.sd"
+    tls:
+      httpsRedirect: true
+  
+  # MLLP for HL7 v2.x (TCP)
+  - port:
+      number: 2575
+      name: hl7-mllp
+      protocol: TCP
+    hosts:
+    - "*"
+---
+# Virtual Service for Gateway
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: nilecare-gateway-routes
+  namespace: infrastructure
+  labels:
+    app: istio-ingressgateway
+    region: sudan
+spec:
+  hosts:
+  - "api.nilecare.sd"
+  gateways:
+  - nilecare-gateway
+  http:
+  # Health check
+  - match:
+    - uri:
+        exact: "/health"
+    route:
+    - destination:
+        host: gateway-service.infrastructure.svc.cluster.local
+        port:
+          number: 3000
+  
+  # API Documentation
+  - match:
+    - uri:
+        prefix: "/api-docs"
+    route:
+    - destination:
+        host: gateway-service.infrastructure.svc.cluster.local
+        port:
+          number: 3000
+  
+  # Authentication
+  - match:
+    - uri:
+        prefix: "/api/v1/auth"
+    route:
+    - destination:
+        host: auth-service.infrastructure.svc.cluster.local
+        port:
+          number: 3001
+    corsPolicy:
+      allowOrigins:
+      - exact: "https://dashboard.nilecare.sd"
+      - exact: "https://mobile.nilecare.sd"
+      allowMethods:
+      - POST
+      - GET
+      - OPTIONS
+      allowHeaders:
+      - authorization
+      - content-type
+      - x-request-id
+      maxAge: "24h"
+  
+  # Clinical Services
+  - match:
+    - uri:
+        prefix: "/api/v1/ehr"
+    - uri:
+        prefix: "/api/v1/cds"
+    - uri:
+        prefix: "/api/v1/medications"
+    - uri:
+        prefix: "/api/v1/lab"
+    route:
+    - destination:
+        host: gateway-service.infrastructure.svc.cluster.local
+        port:
+          number: 3000
+    corsPolicy:
+      allowOrigins:
+      - regex: ".*\\.nilecare\\.sd"
+      allowMethods:
+      - GET
+      - POST
+      - PUT
+      - PATCH
+      - DELETE
+      - OPTIONS
+      allowHeaders:
+      - "*"
+      exposeHeaders:
+      - content-length
+      - content-type
+      maxAge: "24h"
+      allowCredentials: true
+  
+  # Business Services
+  - match:
+    - uri:
+        prefix: "/api/v1/facilities"
+    - uri:
+        prefix: "/api/v1/appointments"
+    - uri:
+        prefix: "/api/v1/billing"
+    - uri:
+        prefix: "/api/v1/inventory"
+    route:
+    - destination:
+        host: gateway-service.infrastructure.svc.cluster.local
+        port:
+          number: 3000
+    corsPolicy:
+      allowOrigins:
+      - regex: ".*\\.nilecare\\.sd"
+      allowMethods:
+      - GET
+      - POST
+      - PUT
+      - PATCH
+      - DELETE
+      - OPTIONS
+      allowHeaders:
+      - "*"
+      maxAge: "24h"
+      allowCredentials: true
+  
+  # FHIR API
+  - match:
+    - uri:
+        prefix: "/fhir"
+    route:
+    - destination:
+        host: fhir-service.integration.svc.cluster.local
+        port:
+          number: 6001
+    corsPolicy:
+      allowOrigins:
+      - regex: ".*"  # FHIR allows cross-origin
+      allowMethods:
+      - GET
+      - POST
+      - PUT
+      - PATCH
+      - DELETE
+      - OPTIONS
+      allowHeaders:
+      - "*"
+      exposeHeaders:
+      - content-location
+      - etag
+      - last-modified
+      maxAge: "24h"
+  
+  # Default route
+  - route:
+    - destination:
+        host: gateway-service.infrastructure.svc.cluster.local
+        port:
+          number: 3000
+---
+# Egress Gateway for External Services
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: nilecare-egress-gateway
+  namespace: infrastructure
+spec:
+  selector:
+    istio: egressgateway
+  servers:
+  - port:
+      number: 443
+      name: https
+      protocol: HTTPS
+    hosts:
+    - "*.stripe.com"
+    - "*.paypal.com"
+    - "*.twilio.com"
+    - "*.firebase.google.com"
+    - "*.sudan.gov.sd"  # Sudan government services
+    tls:
+      mode: PASSTHROUGH
+---
+# Service Entry for External Services
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: external-payment-gateways
+  namespace: infrastructure
+spec:
+  hosts:
+  - "api.stripe.com"
+  - "api.paypal.com"
+  ports:
+  - number: 443
+    name: https
+    protocol: HTTPS
+  location: MESH_EXTERNAL
+  resolution: DNS
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: external-notification-services
+  namespace: infrastructure
+spec:
+  hosts:
+  - "api.twilio.com"
+  - "fcm.googleapis.com"
+  ports:
+  - number: 443
+    name: https
+    protocol: HTTPS
+  location: MESH_EXTERNAL
+  resolution: DNS
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: sudan-government-services
+  namespace: infrastructure
+spec:
+  hosts:
+  - "*.sudan.gov.sd"
+  - "moh.sudan.gov.sd"  # Ministry of Health
+  ports:
+  - number: 443
+    name: https
+    protocol: HTTPS
+  location: MESH_EXTERNAL
+  resolution: DNS

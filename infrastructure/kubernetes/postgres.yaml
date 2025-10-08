@@ -1,0 +1,223 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: nilecare
+  labels:
+    app: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          valueFrom:
+            configMapKeyRef:
+              name: nilecare-config
+              key: DB_NAME
+        - name: POSTGRES_USER
+          valueFrom:
+            configMapKeyRef:
+              name: nilecare-config
+              key: DB_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: nilecare-secrets
+              key: db-password
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+        - name: init-script
+          mountPath: /docker-entrypoint-initdb.d
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - nilecare
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - nilecare
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: postgres-storage
+        persistentVolumeClaim:
+          claimName: postgres-pvc
+      - name: init-script
+        configMap:
+          name: postgres-init-script
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-service
+  namespace: nilecare
+spec:
+  selector:
+    app: postgres
+  ports:
+  - port: 5432
+    targetPort: 5432
+    protocol: TCP
+  type: ClusterIP
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: nilecare
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: standard
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init-script
+  namespace: nilecare
+data:
+  init.sql: |
+    -- Create database extensions
+    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+    CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+    
+    -- Create tables for clinical service
+    CREATE TABLE IF NOT EXISTS patients (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        first_name VARCHAR(50) NOT NULL,
+        last_name VARCHAR(50) NOT NULL,
+        date_of_birth DATE NOT NULL,
+        gender VARCHAR(10) NOT NULL CHECK (gender IN ('male', 'female', 'other', 'unknown')),
+        phone_number VARCHAR(20) NOT NULL,
+        email VARCHAR(100),
+        address_street VARCHAR(100),
+        address_city VARCHAR(50),
+        address_state VARCHAR(50),
+        address_zip_code VARCHAR(10),
+        address_country VARCHAR(50),
+        emergency_contact_name VARCHAR(100),
+        emergency_contact_relationship VARCHAR(50),
+        emergency_contact_phone VARCHAR(20),
+        medical_history TEXT[],
+        allergies TEXT[],
+        medications TEXT[],
+        organization_id UUID NOT NULL,
+        created_by UUID NOT NULL,
+        updated_by UUID,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(phone_number, organization_id)
+    );
+    
+    CREATE TABLE IF NOT EXISTS encounters (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        patient_id UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+        provider_id UUID NOT NULL,
+        encounter_type VARCHAR(20) NOT NULL CHECK (encounter_type IN ('outpatient', 'inpatient', 'emergency', 'telehealth')),
+        start_date TIMESTAMP NOT NULL,
+        end_date TIMESTAMP,
+        chief_complaint TEXT NOT NULL,
+        diagnosis TEXT[],
+        treatment_plan TEXT,
+        vital_signs JSONB,
+        status VARCHAR(20) DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'in-progress', 'completed', 'cancelled')),
+        organization_id UUID NOT NULL,
+        created_by UUID NOT NULL,
+        updated_by UUID,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    
+    CREATE TABLE IF NOT EXISTS medications (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        name VARCHAR(100) NOT NULL,
+        dosage VARCHAR(50) NOT NULL,
+        frequency VARCHAR(50) NOT NULL,
+        route VARCHAR(20) NOT NULL CHECK (route IN ('oral', 'intravenous', 'intramuscular', 'subcutaneous', 'topical', 'inhalation')),
+        start_date TIMESTAMP NOT NULL,
+        end_date TIMESTAMP,
+        patient_id UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+        prescribed_by UUID NOT NULL,
+        instructions TEXT,
+        side_effects TEXT[],
+        status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'discontinued', 'completed')),
+        organization_id UUID NOT NULL,
+        created_by UUID NOT NULL,
+        updated_by UUID,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    
+    CREATE TABLE IF NOT EXISTS diagnostics (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        patient_id UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+        test_type VARCHAR(50) NOT NULL,
+        test_name VARCHAR(100) NOT NULL,
+        ordered_by UUID NOT NULL,
+        order_date TIMESTAMP NOT NULL,
+        scheduled_date TIMESTAMP,
+        completed_date TIMESTAMP,
+        results JSONB,
+        status VARCHAR(20) DEFAULT 'ordered' CHECK (status IN ('ordered', 'scheduled', 'in-progress', 'completed', 'cancelled')),
+        priority VARCHAR(10) DEFAULT 'routine' CHECK (priority IN ('routine', 'urgent', 'stat')),
+        notes TEXT,
+        facility VARCHAR(100),
+        organization_id UUID NOT NULL,
+        created_by UUID NOT NULL,
+        updated_by UUID,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    
+    -- Create indexes for better performance
+    CREATE INDEX IF NOT EXISTS idx_patients_organization ON patients(organization_id);
+    CREATE INDEX IF NOT EXISTS idx_patients_name ON patients(first_name, last_name);
+    CREATE INDEX IF NOT EXISTS idx_patients_phone ON patients(phone_number);
+    CREATE INDEX IF NOT EXISTS idx_encounters_patient ON encounters(patient_id);
+    CREATE INDEX IF NOT EXISTS idx_encounters_provider ON encounters(provider_id);
+    CREATE INDEX IF NOT EXISTS idx_medications_patient ON medications(patient_id);
+    CREATE INDEX IF NOT EXISTS idx_diagnostics_patient ON diagnostics(patient_id);
+    
+    -- Create updated_at trigger function
+    CREATE OR REPLACE FUNCTION update_updated_at_column()
+    RETURNS TRIGGER AS $$
+    BEGIN
+        NEW.updated_at = CURRENT_TIMESTAMP;
+        RETURN NEW;
+    END;
+    $$ language 'plpgsql';
+    
+    -- Create triggers for updated_at
+    CREATE TRIGGER update_patients_updated_at BEFORE UPDATE ON patients FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    CREATE TRIGGER update_encounters_updated_at BEFORE UPDATE ON encounters FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    CREATE TRIGGER update_medications_updated_at BEFORE UPDATE ON medications FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    CREATE TRIGGER update_diagnostics_updated_at BEFORE UPDATE ON diagnostics FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

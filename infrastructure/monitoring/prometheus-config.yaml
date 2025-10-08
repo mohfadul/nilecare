@@ -1,0 +1,484 @@
+# =====================================================
+# Prometheus Configuration for NileCare
+# Purpose: Metrics collection and monitoring
+# Sudan-specific: Custom metrics for Sudan healthcare
+# =====================================================
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: monitoring
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+      external_labels:
+        cluster: 'nilecare-sudan'
+        region: 'africa-khartoum'
+        environment: 'production'
+
+    # Alertmanager configuration
+    alerting:
+      alertmanagers:
+      - static_configs:
+        - targets:
+          - alertmanager:9093
+
+    # Rule files
+    rule_files:
+      - '/etc/prometheus/rules/*.yml'
+
+    # Scrape configurations
+    scrape_configs:
+    # Kubernetes API Server
+    - job_name: 'kubernetes-apiservers'
+      kubernetes_sd_configs:
+      - role: endpoints
+      scheme: https
+      tls_config:
+        ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+      bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+        action: keep
+        regex: default;kubernetes;https
+
+    # Kubernetes Nodes
+    - job_name: 'kubernetes-nodes'
+      kubernetes_sd_configs:
+      - role: node
+      scheme: https
+      tls_config:
+        ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+      bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+      relabel_configs:
+      - action: labelmap
+        regex: __meta_kubernetes_node_label_(.+)
+
+    # Kubernetes Pods
+    - job_name: 'kubernetes-pods'
+      kubernetes_sd_configs:
+      - role: pod
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+        action: keep
+        regex: true
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+        action: replace
+        target_label: __metrics_path__
+        regex: (.+)
+      - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+        action: replace
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        target_label: __address__
+      - action: labelmap
+        regex: __meta_kubernetes_pod_label_(.+)
+      - source_labels: [__meta_kubernetes_namespace]
+        action: replace
+        target_label: kubernetes_namespace
+      - source_labels: [__meta_kubernetes_pod_name]
+        action: replace
+        target_label: kubernetes_pod_name
+
+    # NileCare Microservices
+    - job_name: 'nilecare-services'
+      kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+          - infrastructure
+          - clinical
+          - business
+          - integration
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        action: keep
+        regex: '.*-service'
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        target_label: service
+      - source_labels: [__meta_kubernetes_namespace]
+        target_label: namespace
+      metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'go_.*'
+        action: drop
+
+    # Auth Service (Critical)
+    - job_name: 'auth-service'
+      kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+          - infrastructure
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        action: keep
+        regex: 'auth-service'
+      scrape_interval: 10s  # More frequent for auth
+
+    # EHR Service
+    - job_name: 'ehr-service'
+      kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+          - clinical
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        action: keep
+        regex: 'ehr-service'
+
+    # FHIR Service
+    - job_name: 'fhir-service'
+      kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+          - integration
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        action: keep
+        regex: 'fhir-service'
+
+    # Device Integration Service
+    - job_name: 'device-integration-service'
+      kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+          - integration
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        action: keep
+        regex: 'device-integration-service'
+      scrape_interval: 5s  # High frequency for device data
+
+    # Databases
+    - job_name: 'mysql-exporter'
+      static_configs:
+      - targets:
+        - mysql-exporter:9104
+      relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'mysql-clinical'
+
+    - job_name: 'postgres-exporter'
+      static_configs:
+      - targets:
+        - postgres-exporter:9187
+      relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'postgres-analytics'
+
+    - job_name: 'redis-exporter'
+      static_configs:
+      - targets:
+        - redis-exporter:9121
+
+    - job_name: 'mongodb-exporter'
+      static_configs:
+      - targets:
+        - mongodb-exporter:9216
+
+    # Kafka
+    - job_name: 'kafka-exporter'
+      static_configs:
+      - targets:
+        - kafka-exporter:9308
+
+    # Istio Service Mesh
+    - job_name: 'istio-mesh'
+      kubernetes_sd_configs:
+      - role: endpoints
+        namespaces:
+          names:
+          - istio-system
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+        action: keep
+        regex: istio-telemetry;prometheus
+
+    # Node Exporter
+    - job_name: 'node-exporter'
+      kubernetes_sd_configs:
+      - role: node
+      relabel_configs:
+      - source_labels: [__address__]
+        regex: '(.*):10250'
+        replacement: '${1}:9100'
+        target_label: __address__
+
+    # Blackbox Exporter (Endpoint monitoring)
+    - job_name: 'blackbox'
+      metrics_path: /probe
+      params:
+        module: [http_2xx]
+      static_configs:
+      - targets:
+        - https://api.nilecare.sd/health
+        - https://api.nilecare.sd/fhir/metadata
+      relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-rules
+  namespace: monitoring
+data:
+  nilecare-alerts.yml: |
+    groups:
+    # Service Health Alerts
+    - name: service_health
+      interval: 30s
+      rules:
+      - alert: ServiceDown
+        expr: up{job=~".*-service"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          region: sudan
+        annotations:
+          summary: "Service {{ $labels.service }} is down"
+          description: "{{ $labels.service }} in {{ $labels.namespace }} has been down for more than 1 minute"
+
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate on {{ $labels.service }}"
+          description: "Error rate is {{ $value | humanizePercentage }}"
+
+      - alert: HighLatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High latency on {{ $labels.service }}"
+          description: "P95 latency is {{ $value }}s"
+
+    # Database Alerts
+    - name: database_health
+      interval: 30s
+      rules:
+      - alert: DatabaseDown
+        expr: up{job=~".*-exporter"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Database {{ $labels.instance }} is down"
+
+      - alert: HighDatabaseConnections
+        expr: mysql_global_status_threads_connected / mysql_global_variables_max_connections > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High database connections on {{ $labels.instance }}"
+          description: "{{ $value | humanizePercentage }} of max connections used"
+
+      - alert: SlowQueries
+        expr: rate(mysql_global_status_slow_queries[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High slow query rate on {{ $labels.instance }}"
+
+    # Resource Alerts
+    - name: resource_usage
+      interval: 30s
+      rules:
+      - alert: HighCPUUsage
+        expr: rate(container_cpu_usage_seconds_total[5m]) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage on {{ $labels.pod }}"
+          description: "CPU usage is {{ $value | humanizePercentage }}"
+
+      - alert: HighMemoryUsage
+        expr: container_memory_usage_bytes / container_spec_memory_limit_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage on {{ $labels.pod }}"
+
+      - alert: PodCrashLooping
+        expr: rate(kube_pod_container_status_restarts_total[15m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Pod {{ $labels.pod }} is crash looping"
+
+    # Clinical Alerts (Sudan-specific)
+    - name: clinical_quality
+      interval: 60s
+      rules:
+      - alert: HighCriticalValueRate
+        expr: rate(critical_values_total[1h]) > 10
+        for: 10m
+        labels:
+          severity: warning
+          region: sudan
+        annotations:
+          summary: "High critical value rate at {{ $labels.facility }}"
+          description: "{{ $value }} critical values per hour"
+
+      - alert: DeviceDisconnected
+        expr: device_connection_status == 0
+        for: 5m
+        labels:
+          severity: high
+        annotations:
+          summary: "Medical device {{ $labels.device_id }} disconnected"
+          description: "Patient {{ $labels.patient_id }} monitoring interrupted"
+
+      - alert: SudanNationalIdAccessSpike
+        expr: rate(sudan_national_id_access_total[1h]) > 100
+        for: 10m
+        labels:
+          severity: warning
+          region: sudan
+        annotations:
+          summary: "Unusual Sudan National ID access rate"
+          description: "{{ $value }} accesses per hour at {{ $labels.facility }}"
+
+    # Business Alerts
+    - name: business_metrics
+      interval: 60s
+      rules:
+      - alert: HighAppointmentCancellationRate
+        expr: rate(appointments_cancelled_total[1h]) / rate(appointments_scheduled_total[1h]) > 0.2
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High appointment cancellation rate"
+          description: "{{ $value | humanizePercentage }} cancellation rate"
+
+      - alert: LowBedAvailability
+        expr: (beds_available / beds_total) < 0.1
+        for: 10m
+        labels:
+          severity: high
+        annotations:
+          summary: "Low bed availability at {{ $labels.facility }}"
+          description: "Only {{ $value | humanizePercentage }} beds available"
+
+      - alert: InventoryLowStock
+        expr: inventory_stock_level < inventory_reorder_level
+        for: 1h
+        labels:
+          severity: medium
+        annotations:
+          summary: "Low stock for {{ $labels.item_name }}"
+          description: "Current stock: {{ $value }} at {{ $labels.facility }}"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: monitoring
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      serviceAccountName: prometheus
+      containers:
+      - name: prometheus
+        image: prom/prometheus:v2.47.0
+        args:
+        - '--config.file=/etc/prometheus/prometheus.yml'
+        - '--storage.tsdb.path=/prometheus'
+        - '--storage.tsdb.retention.time=30d'
+        - '--web.enable-lifecycle'
+        - '--web.enable-admin-api'
+        ports:
+        - containerPort: 9090
+          name: http
+        volumeMounts:
+        - name: config
+          mountPath: /etc/prometheus
+        - name: rules
+          mountPath: /etc/prometheus/rules
+        - name: storage
+          mountPath: /prometheus
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        livenessProbe:
+          httpGet:
+            path: /-/healthy
+            port: 9090
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /-/ready
+            port: 9090
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: config
+        configMap:
+          name: prometheus-config
+      - name: rules
+        configMap:
+          name: prometheus-rules
+      - name: storage
+        persistentVolumeClaim:
+          claimName: prometheus-storage
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: monitoring
+spec:
+  selector:
+    app: prometheus
+  ports:
+  - port: 9090
+    targetPort: 9090
+  type: ClusterIP
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: prometheus-storage
+  namespace: monitoring
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: fast-ssd
+  resources:
+    requests:
+      storage: 100Gi

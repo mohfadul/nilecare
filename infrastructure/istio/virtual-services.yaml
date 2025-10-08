@@ -1,0 +1,320 @@
+# =====================================================
+# Istio Virtual Services Configuration
+# Purpose: Traffic management, routing, and role-based access
+# Sudan-specific: Role-based routing for Sudan healthcare roles
+# =====================================================
+
+# EHR Service Virtual Service
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: ehr-service
+  namespace: clinical
+  labels:
+    app: ehr-service
+    region: sudan
+spec:
+  hosts:
+  - ehr-service
+  - ehr-service.clinical.svc.cluster.local
+  http:
+  # Route for physicians (full access)
+  - match:
+    - headers:
+        x-role:
+          exact: "physician"
+    route:
+    - destination:
+        host: ehr-service
+        port:
+          number: 4001
+        subset: v1
+      weight: 100
+    timeout: 30s
+    retries:
+      attempts: 3
+      perTryTimeout: 10s
+      retryOn: 5xx,reset,connect-failure
+    headers:
+      request:
+        set:
+          x-data-scope: "full"
+          x-access-level: "write"
+  
+  # Route for nurses (limited access)
+  - match:
+    - headers:
+        x-role:
+          exact: "nurse"
+    route:
+    - destination:
+        host: ehr-service
+        port:
+          number: 4001
+        subset: v1
+      weight: 100
+    timeout: 30s
+    headers:
+      request:
+        set:
+          x-data-scope: "limited"
+          x-access-level: "read-write"
+  
+  # Route for pharmacists (medication focus)
+  - match:
+    - headers:
+        x-role:
+          exact: "pharmacist"
+    route:
+    - destination:
+        host: ehr-service
+        port:
+          number: 4001
+        subset: v1
+      weight: 100
+    timeout: 20s
+    headers:
+      request:
+        set:
+          x-data-scope: "medications-only"
+          x-access-level: "read"
+  
+  # Route for lab technicians (lab results only)
+  - match:
+    - headers:
+        x-role:
+          exact: "lab_technician"
+    route:
+    - destination:
+        host: ehr-service
+        port:
+          number: 4001
+        subset: v1
+      weight: 100
+    timeout: 20s
+    headers:
+      request:
+        set:
+          x-data-scope: "lab-results-only"
+          x-access-level: "read-write"
+  
+  # Route for receptionists (demographics only)
+  - match:
+    - headers:
+        x-role:
+          exact: "receptionist"
+    route:
+    - destination:
+        host: ehr-service
+        port:
+          number: 4001
+        subset: v1
+      weight: 100
+    timeout: 15s
+    headers:
+      request:
+        set:
+          x-data-scope: "demographics-only"
+          x-access-level: "read"
+  
+  # Default route (authenticated users)
+  - route:
+    - destination:
+        host: ehr-service
+        port:
+          number: 4001
+        subset: v1
+      weight: 100
+    timeout: 30s
+---
+# FHIR Service Virtual Service
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: fhir-service
+  namespace: integration
+  labels:
+    app: fhir-service
+    region: sudan
+spec:
+  hosts:
+  - fhir-service
+  - fhir-service.integration.svc.cluster.local
+  http:
+  # FHIR Bulk Export (long-running operation)
+  - match:
+    - uri:
+        prefix: "/fhir/$export"
+    route:
+    - destination:
+        host: fhir-service
+        port:
+          number: 6001
+        subset: v1
+    timeout: 300s  # 5 minutes for bulk export
+    retries:
+      attempts: 2
+      perTryTimeout: 150s
+  
+  # SMART on FHIR OAuth endpoints
+  - match:
+    - uri:
+        prefix: "/oauth2"
+    - uri:
+        prefix: "/.well-known/smart-configuration"
+    route:
+    - destination:
+        host: fhir-service
+        port:
+          number: 6001
+        subset: v1
+    timeout: 10s
+  
+  # Standard FHIR operations
+  - match:
+    - uri:
+        prefix: "/fhir"
+    route:
+    - destination:
+        host: fhir-service
+        port:
+          number: 6001
+        subset: v1
+    timeout: 30s
+    retries:
+      attempts: 3
+      perTryTimeout: 10s
+      retryOn: 5xx,reset,connect-failure
+---
+# Appointment Service Virtual Service (Canary Deployment)
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: appointment-service
+  namespace: business
+  labels:
+    app: appointment-service
+    region: sudan
+spec:
+  hosts:
+  - appointment-service
+  - appointment-service.business.svc.cluster.local
+  http:
+  # Canary deployment: 10% to v2, 90% to v1
+  - match:
+    - headers:
+        x-canary:
+          exact: "true"
+    route:
+    - destination:
+        host: appointment-service
+        port:
+          number: 5002
+        subset: v2
+      weight: 100
+  
+  # Regular traffic split
+  - route:
+    - destination:
+        host: appointment-service
+        port:
+          number: 5002
+        subset: v1
+      weight: 90
+    - destination:
+        host: appointment-service
+        port:
+          number: 5002
+        subset: v2
+      weight: 10
+    timeout: 30s
+    retries:
+      attempts: 3
+      perTryTimeout: 10s
+---
+# Device Integration Service Virtual Service
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: device-integration-service
+  namespace: integration
+  labels:
+    app: device-integration-service
+    region: sudan
+spec:
+  hosts:
+  - device-integration-service
+  - device-integration-service.integration.svc.cluster.local
+  http:
+  # Real-time vital signs streaming (higher timeout)
+  - match:
+    - uri:
+        prefix: "/api/v1/vital-signs/stream"
+    route:
+    - destination:
+        host: device-integration-service
+        port:
+          number: 6003
+        subset: v1
+    timeout: 3600s  # 1 hour for streaming
+  
+  # Standard device operations
+  - route:
+    - destination:
+        host: device-integration-service
+        port:
+          number: 6003
+        subset: v1
+    timeout: 30s
+    retries:
+      attempts: 2
+      perTryTimeout: 15s
+---
+# Gateway Service Virtual Service (Entry Point)
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: gateway-service
+  namespace: infrastructure
+  labels:
+    app: gateway-service
+    region: sudan
+spec:
+  hosts:
+  - api.nilecare.sd
+  - gateway-service
+  gateways:
+  - nilecare-gateway
+  http:
+  # Health check endpoint (no auth required)
+  - match:
+    - uri:
+        exact: "/health"
+    route:
+    - destination:
+        host: gateway-service
+        port:
+          number: 3000
+    timeout: 5s
+  
+  # Authentication endpoints
+  - match:
+    - uri:
+        prefix: "/api/v1/auth"
+    route:
+    - destination:
+        host: auth-service.infrastructure.svc.cluster.local
+        port:
+          number: 3001
+    timeout: 10s
+  
+  # All other API traffic
+  - route:
+    - destination:
+        host: gateway-service
+        port:
+          number: 3000
+    timeout: 30s
+    retries:
+      attempts: 3
+      perTryTimeout: 10s

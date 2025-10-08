@@ -1,0 +1,526 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: clinical
+  labels:
+    name: clinical
+    environment: production
+    region: sudan
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ehr-service-config
+  namespace: clinical
+data:
+  # Application Configuration
+  NODE_ENV: "production"
+  LOG_LEVEL: "info"
+  PORT: "4001"
+  
+  # Sudan-specific Configuration
+  TIMEZONE: "Africa/Khartoum"
+  LOCALE: "ar_SD"
+  PRIMARY_LANGUAGE: "Arabic"
+  COUNTRY: "Sudan"
+  
+  # Database Configuration
+  DB_HOST: "mysql-clinical.data.svc.cluster.local"
+  DB_PORT: "3306"
+  DB_NAME: "clinical_data"
+  DB_POOL_MIN: "5"
+  DB_POOL_MAX: "20"
+  
+  # Redis Configuration
+  REDIS_HOST: "redis-cache.data.svc.cluster.local"
+  REDIS_PORT: "6379"
+  REDIS_DB: "0"
+  
+  # Kafka Configuration
+  KAFKA_BROKERS: "kafka-0.kafka-headless.messaging.svc.cluster.local:9092,kafka-1.kafka-headless.messaging.svc.cluster.local:9092,kafka-2.kafka-headless.messaging.svc.cluster.local:9092"
+  KAFKA_CLIENT_ID: "ehr-service"
+  KAFKA_GROUP_ID: "ehr-service-group"
+  
+  # Service URLs
+  FHIR_SERVICE_URL: "http://fhir-service.integration.svc.cluster.local:6001"
+  CDS_SERVICE_URL: "http://cds-service.clinical.svc.cluster.local:4002"
+  NOTIFICATION_SERVICE_URL: "http://notification-service.infrastructure.svc.cluster.local:3002"
+  
+  # Monitoring
+  PROMETHEUS_ENABLED: "true"
+  JAEGER_ENABLED: "true"
+  JAEGER_AGENT_HOST: "jaeger-agent.monitoring.svc.cluster.local"
+  JAEGER_AGENT_PORT: "6831"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ehr-service-secrets
+  namespace: clinical
+type: Opaque
+stringData:
+  # Database Credentials
+  DB_USER: "nilecare_app"
+  DB_PASSWORD: "nilecare_app_password_change_in_production"
+  
+  # Redis Password
+  REDIS_PASSWORD: ""
+  
+  # JWT Secret
+  JWT_SECRET: "nilecare-jwt-secret-key-2024-change-in-production"
+  
+  # Encryption Key (64 hex characters = 32 bytes for AES-256)
+  ENCRYPTION_KEY: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+  
+  # API Keys
+  FHIR_API_KEY: "fhir-service-api-key"
+  CDS_API_KEY: "cds-service-api-key"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ehr-service
+  namespace: clinical
+  labels:
+    app: ehr-service
+    tier: clinical
+    version: v2.0.0
+    region: sudan
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: ehr-service
+  template:
+    metadata:
+      labels:
+        app: ehr-service
+        tier: clinical
+        version: v2.0.0
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "4001"
+        prometheus.io/path: "/metrics"
+    spec:
+      # Anti-affinity to spread pods across nodes
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - ehr-service
+              topologyKey: kubernetes.io/hostname
+      
+      # Service Account
+      serviceAccountName: ehr-service-sa
+      
+      # Security Context
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      
+      # Init Container for database migration
+      initContainers:
+      - name: db-migration
+        image: nilecare/ehr-service:2.0.0
+        command: ['npm', 'run', 'migrate']
+        envFrom:
+        - configMapRef:
+            name: ehr-service-config
+        - secretRef:
+            name: ehr-service-secrets
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "200m"
+      
+      # Main Container
+      containers:
+      - name: ehr-service
+        image: nilecare/ehr-service:2.0.0
+        imagePullPolicy: Always
+        ports:
+        - name: http
+          containerPort: 4001
+          protocol: TCP
+        - name: metrics
+          containerPort: 9090
+          protocol: TCP
+        
+        # Environment Variables
+        envFrom:
+        - configMapRef:
+            name: ehr-service-config
+        - secretRef:
+            name: ehr-service-secrets
+        
+        # Additional Environment Variables
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        
+        # Resource Limits
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+            ephemeral-storage: "1Gi"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+            ephemeral-storage: "2Gi"
+        
+        # Health Checks
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 4001
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+        
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: 4001
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          successThreshold: 1
+          failureThreshold: 3
+        
+        startupProbe:
+          httpGet:
+            path: /health/startup
+            port: 4001
+            scheme: HTTP
+          initialDelaySeconds: 0
+          periodSeconds: 5
+          timeoutSeconds: 3
+          successThreshold: 1
+          failureThreshold: 30
+        
+        # Security Context
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1000
+          capabilities:
+            drop:
+            - ALL
+        
+        # Volume Mounts
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        - name: cache
+          mountPath: /app/.cache
+        - name: logs
+          mountPath: /app/logs
+        - name: config
+          mountPath: /app/config
+          readOnly: true
+      
+      # Volumes
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      - name: cache
+        emptyDir: {}
+      - name: logs
+        emptyDir: {}
+      - name: config
+        configMap:
+          name: ehr-service-config
+      
+      # DNS Configuration
+      dnsPolicy: ClusterFirst
+      dnsConfig:
+        options:
+        - name: ndots
+          value: "2"
+      
+      # Restart Policy
+      restartPolicy: Always
+      
+      # Termination Grace Period
+      terminationGracePeriodSeconds: 30
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ehr-service
+  namespace: clinical
+  labels:
+    app: ehr-service
+    tier: clinical
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+spec:
+  type: ClusterIP
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800
+  selector:
+    app: ehr-service
+  ports:
+  - name: http
+    port: 4001
+    targetPort: 4001
+    protocol: TCP
+  - name: metrics
+    port: 9090
+    targetPort: 9090
+    protocol: TCP
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ehr-service-sa
+  namespace: clinical
+  labels:
+    app: ehr-service
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ehr-service-role
+  namespace: clinical
+rules:
+- apiGroups: [""]
+  resources: ["configmaps", "secrets"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ehr-service-rolebinding
+  namespace: clinical
+subjects:
+- kind: ServiceAccount
+  name: ehr-service-sa
+  namespace: clinical
+roleRef:
+  kind: Role
+  name: ehr-service-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ehr-service-hpa
+  namespace: clinical
+  labels:
+    app: ehr-service
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ehr-service
+  minReplicas: 3
+  maxReplicas: 20
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  - type: Pods
+    pods:
+      metric:
+        name: http_requests_per_second
+      target:
+        type: AverageValue
+        averageValue: "1000"
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 60
+      - type: Pods
+        value: 2
+        periodSeconds: 60
+      selectPolicy: Min
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 30
+      - type: Pods
+        value: 4
+        periodSeconds: 30
+      selectPolicy: Max
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ehr-service-pdb
+  namespace: clinical
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: ehr-service
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ehr-service-network-policy
+  namespace: clinical
+spec:
+  podSelector:
+    matchLabels:
+      app: ehr-service
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: infrastructure
+      podSelector:
+        matchLabels:
+          app: api-gateway
+    - namespaceSelector:
+        matchLabels:
+          name: clinical
+    ports:
+    - protocol: TCP
+      port: 4001
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: data
+      podSelector:
+        matchLabels:
+          app: mysql
+    ports:
+    - protocol: TCP
+      port: 3306
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: data
+      podSelector:
+        matchLabels:
+          app: redis
+    ports:
+    - protocol: TCP
+      port: 6379
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: messaging
+      podSelector:
+        matchLabels:
+          app: kafka
+    ports:
+    - protocol: TCP
+      port: 9092
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: integration
+    ports:
+    - protocol: TCP
+      port: 6001
+  - ports:
+    - protocol: TCP
+      port: 53
+    - protocol: UDP
+      port: 53
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: clinical-namespace-quota
+  namespace: clinical
+spec:
+  hard:
+    requests.cpu: "20"
+    requests.memory: "40Gi"
+    requests.storage: "100Gi"
+    persistentvolumeclaims: "10"
+    pods: "50"
+    services: "20"
+    secrets: "50"
+    configmaps: "50"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: clinical-namespace-limits
+  namespace: clinical
+spec:
+  limits:
+  - max:
+      cpu: "2"
+      memory: "4Gi"
+    min:
+      cpu: "100m"
+      memory: "128Mi"
+    default:
+      cpu: "500m"
+      memory: "1Gi"
+    defaultRequest:
+      cpu: "250m"
+      memory: "512Mi"
+    type: Container
+  - max:
+      cpu: "4"
+      memory: "8Gi"
+    min:
+      cpu: "200m"
+      memory: "256Mi"
+    type: Pod

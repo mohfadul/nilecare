@@ -1,0 +1,390 @@
+# =====================================================
+# Istio Destination Rules Configuration
+# Purpose: Load balancing, circuit breakers, TLS, connection pools
+# Sudan-specific: Optimized for Sudan network conditions
+# =====================================================
+
+# EHR Service Destination Rule
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: ehr-service
+  namespace: clinical
+  labels:
+    app: ehr-service
+    region: sudan
+spec:
+  host: ehr-service
+  trafficPolicy:
+    # Load Balancer Settings
+    loadBalancer:
+      consistentHash:
+        httpHeaderName: x-user-id  # Session affinity by user
+    
+    # Connection Pool Settings
+    connectionPool:
+      tcp:
+        maxConnections: 100
+        connectTimeout: 10s
+        tcpKeepalive:
+          time: 7200s
+          interval: 75s
+      http:
+        http1MaxPendingRequests: 50
+        http2MaxRequests: 100
+        maxRequestsPerConnection: 2
+        maxRetries: 3
+        idleTimeout: 300s
+        h2UpgradePolicy: UPGRADE
+    
+    # Circuit Breaker Settings
+    outlierDetection:
+      consecutiveErrors: 5
+      interval: 30s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+      minHealthPercent: 50
+      splitExternalLocalOriginErrors: true
+    
+    # TLS Settings
+    tls:
+      mode: ISTIO_MUTUAL
+      sni: ehr-service.clinical.svc.cluster.local
+  
+  # Subsets for version-based routing
+  subsets:
+  - name: v1
+    labels:
+      version: v1
+  - name: v2
+    labels:
+      version: v2
+---
+# FHIR Service Destination Rule
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: fhir-service
+  namespace: integration
+  labels:
+    app: fhir-service
+    region: sudan
+spec:
+  host: fhir-service
+  trafficPolicy:
+    loadBalancer:
+      simple: LEAST_REQUEST  # Route to least busy pod
+    
+    connectionPool:
+      tcp:
+        maxConnections: 200  # Higher for FHIR operations
+        connectTimeout: 15s
+      http:
+        http1MaxPendingRequests: 100
+        http2MaxRequests: 200
+        maxRequestsPerConnection: 5
+        idleTimeout: 600s  # Longer for bulk operations
+    
+    outlierDetection:
+      consecutiveErrors: 7
+      interval: 30s
+      baseEjectionTime: 60s
+      maxEjectionPercent: 30
+      minHealthPercent: 70
+    
+    tls:
+      mode: ISTIO_MUTUAL
+  
+  subsets:
+  - name: v1
+    labels:
+      version: v1
+---
+# HL7 Service Destination Rule
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: hl7-service
+  namespace: integration
+  labels:
+    app: hl7-service
+    region: sudan
+spec:
+  host: hl7-service
+  trafficPolicy:
+    loadBalancer:
+      simple: ROUND_ROBIN
+    
+    connectionPool:
+      tcp:
+        maxConnections: 150
+        connectTimeout: 10s
+      http:
+        http1MaxPendingRequests: 75
+        http2MaxRequests: 150
+        maxRequestsPerConnection: 3
+    
+    outlierDetection:
+      consecutiveErrors: 5
+      interval: 20s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 40
+      minHealthPercent: 60
+    
+    tls:
+      mode: ISTIO_MUTUAL
+  
+  subsets:
+  - name: v1
+    labels:
+      version: v1
+---
+# Device Integration Service Destination Rule
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: device-integration-service
+  namespace: integration
+  labels:
+    app: device-integration-service
+    region: sudan
+spec:
+  host: device-integration-service
+  trafficPolicy:
+    loadBalancer:
+      consistentHash:
+        httpHeaderName: x-device-id  # Sticky sessions per device
+    
+    connectionPool:
+      tcp:
+        maxConnections: 300  # High for real-time streaming
+        connectTimeout: 5s
+      http:
+        http1MaxPendingRequests: 150
+        http2MaxRequests: 300
+        maxRequestsPerConnection: 10
+        idleTimeout: 3600s  # 1 hour for streaming
+    
+    outlierDetection:
+      consecutiveErrors: 10
+      interval: 60s
+      baseEjectionTime: 120s
+      maxEjectionPercent: 20
+      minHealthPercent: 80
+    
+    tls:
+      mode: ISTIO_MUTUAL
+  
+  subsets:
+  - name: v1
+    labels:
+      version: v1
+---
+# Appointment Service Destination Rule (Canary)
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: appointment-service
+  namespace: business
+  labels:
+    app: appointment-service
+    region: sudan
+spec:
+  host: appointment-service
+  trafficPolicy:
+    loadBalancer:
+      simple: LEAST_REQUEST
+    
+    connectionPool:
+      tcp:
+        maxConnections: 100
+        connectTimeout: 10s
+      http:
+        http1MaxPendingRequests: 50
+        http2MaxRequests: 100
+        maxRequestsPerConnection: 2
+    
+    outlierDetection:
+      consecutiveErrors: 5
+      interval: 30s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+      minHealthPercent: 50
+    
+    tls:
+      mode: ISTIO_MUTUAL
+  
+  subsets:
+  - name: v1
+    labels:
+      version: v1
+  - name: v2
+    labels:
+      version: v2
+    trafficPolicy:
+      # More conservative settings for canary
+      connectionPool:
+        tcp:
+          maxConnections: 50
+        http:
+          http1MaxPendingRequests: 25
+          http2MaxRequests: 50
+---
+# Billing Service Destination Rule
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: billing-service
+  namespace: business
+  labels:
+    app: billing-service
+    region: sudan
+spec:
+  host: billing-service
+  trafficPolicy:
+    loadBalancer:
+      consistentHash:
+        httpHeaderName: x-user-id  # Session affinity for payment flows
+    
+    connectionPool:
+      tcp:
+        maxConnections: 100
+        connectTimeout: 15s  # Longer for payment processing
+      http:
+        http1MaxPendingRequests: 50
+        http2MaxRequests: 100
+        maxRequestsPerConnection: 2
+        idleTimeout: 600s
+    
+    outlierDetection:
+      consecutiveErrors: 3  # Stricter for financial operations
+      interval: 20s
+      baseEjectionTime: 60s
+      maxEjectionPercent: 30
+      minHealthPercent: 70
+    
+    tls:
+      mode: ISTIO_MUTUAL
+  
+  subsets:
+  - name: v1
+    labels:
+      version: v1
+---
+# Facility Service Destination Rule
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: facility-service
+  namespace: business
+  labels:
+    app: facility-service
+    region: sudan
+spec:
+  host: facility-service
+  trafficPolicy:
+    loadBalancer:
+      consistentHash:
+        httpHeaderName: x-facility-id  # Route by facility
+    
+    connectionPool:
+      tcp:
+        maxConnections: 100
+        connectTimeout: 10s
+      http:
+        http1MaxPendingRequests: 50
+        http2MaxRequests: 100
+        maxRequestsPerConnection: 2
+    
+    outlierDetection:
+      consecutiveErrors: 5
+      interval: 30s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+      minHealthPercent: 50
+    
+    tls:
+      mode: ISTIO_MUTUAL
+  
+  subsets:
+  - name: v1
+    labels:
+      version: v1
+---
+# Auth Service Destination Rule (Critical)
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: auth-service
+  namespace: infrastructure
+  labels:
+    app: auth-service
+    region: sudan
+spec:
+  host: auth-service
+  trafficPolicy:
+    loadBalancer:
+      simple: ROUND_ROBIN
+    
+    connectionPool:
+      tcp:
+        maxConnections: 200  # High for authentication
+        connectTimeout: 5s
+      http:
+        http1MaxPendingRequests: 100
+        http2MaxRequests: 200
+        maxRequestsPerConnection: 5
+    
+    outlierDetection:
+      consecutiveErrors: 3  # Strict for auth
+      interval: 15s
+      baseEjectionTime: 60s
+      maxEjectionPercent: 25
+      minHealthPercent: 75
+    
+    tls:
+      mode: ISTIO_MUTUAL
+  
+  subsets:
+  - name: v1
+    labels:
+      version: v1
+---
+# Notification Service Destination Rule
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: notification-service
+  namespace: infrastructure
+  labels:
+    app: notification-service
+    region: sudan
+spec:
+  host: notification-service
+  trafficPolicy:
+    loadBalancer:
+      simple: RANDOM  # Random for notification distribution
+    
+    connectionPool:
+      tcp:
+        maxConnections: 150
+        connectTimeout: 10s
+      http:
+        http1MaxPendingRequests: 75
+        http2MaxRequests: 150
+        maxRequestsPerConnection: 3
+    
+    outlierDetection:
+      consecutiveErrors: 10  # More lenient for notifications
+      interval: 60s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+      minHealthPercent: 50
+    
+    tls:
+      mode: ISTIO_MUTUAL
+  
+  subsets:
+  - name: v1
+    labels:
+      version: v1

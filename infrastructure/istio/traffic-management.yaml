@@ -1,0 +1,490 @@
+# =====================================================
+# Istio Traffic Management Configuration
+# Purpose: Advanced routing, fault injection, mirroring
+# Sudan-specific: Traffic optimization for Sudan network
+# =====================================================
+
+# Traffic Mirroring for Testing
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: ehr-service-mirror
+  namespace: clinical
+spec:
+  hosts:
+  - ehr-service
+  http:
+  - match:
+    - headers:
+        x-mirror-traffic:
+          exact: "true"
+    route:
+    - destination:
+        host: ehr-service
+        subset: v1
+      weight: 100
+    mirror:
+      host: ehr-service
+      subset: v2
+    mirrorPercentage:
+      value: 100.0
+---
+# Fault Injection for Testing
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: ehr-service-fault-injection
+  namespace: clinical
+spec:
+  hosts:
+  - ehr-service
+  http:
+  - match:
+    - headers:
+        x-chaos-test:
+          exact: "true"
+    fault:
+      delay:
+        percentage:
+          value: 10.0
+        fixedDelay: 5s
+      abort:
+        percentage:
+          value: 5.0
+        httpStatus: 503
+    route:
+    - destination:
+        host: ehr-service
+        subset: v1
+---
+# Retry Policy for Unreliable Networks
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: external-services-retry
+  namespace: infrastructure
+spec:
+  hosts:
+  - "*.sudan.gov.sd"
+  http:
+  - route:
+    - destination:
+        host: egress-gateway
+    retries:
+      attempts: 5
+      perTryTimeout: 30s
+      retryOn: 5xx,reset,connect-failure,refused-stream,gateway-error
+    timeout: 180s
+---
+# Traffic Shifting (A/B Testing)
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: appointment-service-ab-test
+  namespace: business
+spec:
+  hosts:
+  - appointment-service
+  http:
+  # Test group (10% to v2)
+  - match:
+    - headers:
+        x-test-group:
+          exact: "beta"
+    route:
+    - destination:
+        host: appointment-service
+        subset: v2
+      weight: 100
+  
+  # Control group (90% to v1, 10% to v2)
+  - route:
+    - destination:
+        host: appointment-service
+        subset: v1
+      weight: 90
+    - destination:
+        host: appointment-service
+        subset: v2
+      weight: 10
+---
+# Request Timeout Configuration
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: service-timeouts
+  namespace: clinical
+spec:
+  hosts:
+  - ehr-service
+  - cds-service
+  - medication-service
+  - lab-service
+  http:
+  # Long-running operations
+  - match:
+    - uri:
+        prefix: "/api/v1/export"
+    - uri:
+        prefix: "/api/v1/reports"
+    route:
+    - destination:
+        host: ehr-service
+    timeout: 300s
+  
+  # Standard operations
+  - route:
+    - destination:
+        host: ehr-service
+    timeout: 30s
+---
+# Header-Based Routing (Feature Flags)
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: feature-flag-routing
+  namespace: clinical
+spec:
+  hosts:
+  - ehr-service
+  http:
+  # New feature enabled
+  - match:
+    - headers:
+        x-feature-ai-diagnosis:
+          exact: "enabled"
+    route:
+    - destination:
+        host: ehr-service
+        subset: v2-with-ai
+      weight: 100
+  
+  # Default routing
+  - route:
+    - destination:
+        host: ehr-service
+        subset: v1
+      weight: 100
+---
+# Geographic Routing (Sudan States)
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: facility-geographic-routing
+  namespace: business
+spec:
+  hosts:
+  - facility-service
+  http:
+  # Khartoum region (highest traffic)
+  - match:
+    - headers:
+        x-sudan-state:
+          regex: "Khartoum|River Nile"
+    route:
+    - destination:
+        host: facility-service
+        subset: khartoum-region
+      weight: 100
+  
+  # Darfur region
+  - match:
+    - headers:
+        x-sudan-state:
+          regex: "North Darfur|South Darfur|West Darfur|East Darfur|Central Darfur"
+    route:
+    - destination:
+        host: facility-service
+        subset: darfur-region
+      weight: 100
+  
+  # Other regions
+  - route:
+    - destination:
+        host: facility-service
+        subset: v1
+      weight: 100
+---
+# Weighted Routing for Load Distribution
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: load-distribution
+  namespace: clinical
+spec:
+  hosts:
+  - ehr-service
+  http:
+  # Distribute load based on pod capacity
+  - route:
+    - destination:
+        host: ehr-service
+        subset: high-capacity
+      weight: 60
+    - destination:
+        host: ehr-service
+        subset: standard-capacity
+      weight: 40
+---
+# Sticky Sessions for Stateful Operations
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: appointment-sticky-sessions
+  namespace: business
+spec:
+  hosts:
+  - appointment-service
+  http:
+  - match:
+    - headers:
+        x-session-required:
+          exact: "true"
+    route:
+    - destination:
+        host: appointment-service
+        subset: v1
+      headers:
+        request:
+          set:
+            x-sticky-session: "true"
+---
+# Request Mirroring for Shadow Testing
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: shadow-testing
+  namespace: clinical
+spec:
+  hosts:
+  - ehr-service
+  http:
+  - match:
+    - headers:
+        x-shadow-test:
+          exact: "enabled"
+    route:
+    - destination:
+        host: ehr-service
+        subset: v1
+      weight: 100
+    mirror:
+      host: ehr-service
+      subset: v2-test
+    mirrorPercentage:
+      value: 100.0
+---
+# Locality-Based Load Balancing
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: locality-lb
+  namespace: clinical
+spec:
+  host: ehr-service
+  trafficPolicy:
+    loadBalancer:
+      localityLbSetting:
+        enabled: true
+        distribute:
+        - from: "sudan/khartoum/*"
+          to:
+            "sudan/khartoum/*": 80
+            "sudan/omdurman/*": 15
+            "sudan/bahri/*": 5
+        - from: "sudan/omdurman/*"
+          to:
+            "sudan/omdurman/*": 80
+            "sudan/khartoum/*": 15
+            "sudan/bahri/*": 5
+        - from: "sudan/bahri/*"
+          to:
+            "sudan/bahri/*": 80
+            "sudan/khartoum/*": 15
+            "sudan/omdurman/*": 5
+    outlierDetection:
+      consecutiveErrors: 5
+      interval: 30s
+      baseEjectionTime: 30s
+---
+# Request Hedging (Parallel Requests)
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: critical-request-hedging
+  namespace: clinical
+spec:
+  hosts:
+  - cds-service  # Clinical Decision Support
+  http:
+  - match:
+    - headers:
+        x-priority:
+          exact: "critical"
+    route:
+    - destination:
+        host: cds-service
+        subset: v1
+    timeout: 5s
+    retries:
+      attempts: 3
+      perTryTimeout: 2s
+      retryOn: 5xx,reset,connect-failure
+---
+# Percentage-Based Traffic Split
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: gradual-rollout
+  namespace: business
+spec:
+  hosts:
+  - billing-service
+  http:
+  # Week 1: 5% to v2
+  - route:
+    - destination:
+        host: billing-service
+        subset: v1
+      weight: 95
+    - destination:
+        host: billing-service
+        subset: v2
+      weight: 5
+---
+# Request Header Manipulation
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: header-manipulation
+  namespace: clinical
+spec:
+  hosts:
+  - ehr-service
+  http:
+  - route:
+    - destination:
+        host: ehr-service
+        subset: v1
+    headers:
+      request:
+        set:
+          x-forwarded-proto: "https"
+          x-region: "sudan"
+          x-timezone: "Africa/Khartoum"
+        add:
+          x-request-timestamp: "%START_TIME%"
+        remove:
+        - x-internal-debug
+      response:
+        set:
+          x-powered-by: "NileCare Sudan"
+          x-content-type-options: "nosniff"
+          x-frame-options: "DENY"
+        add:
+          x-response-timestamp: "%RESPONSE_TIME%"
+        remove:
+        - server
+---
+# URI Rewriting
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: uri-rewriting
+  namespace: clinical
+spec:
+  hosts:
+  - ehr-service
+  http:
+  # Rewrite legacy API paths
+  - match:
+    - uri:
+        prefix: "/api/patients"
+    rewrite:
+      uri: "/api/v1/ehr/patients"
+    route:
+    - destination:
+        host: ehr-service
+        subset: v1
+  
+  # Rewrite old medication paths
+  - match:
+    - uri:
+        prefix: "/api/medications"
+    rewrite:
+      uri: "/api/v1/medications"
+    route:
+    - destination:
+        host: medication-service.clinical.svc.cluster.local
+        port:
+          number: 4003
+---
+# Timeout Cascade Prevention
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: timeout-cascade-prevention
+  namespace: clinical
+spec:
+  hosts:
+  - ehr-service
+  http:
+  - route:
+    - destination:
+        host: ehr-service
+        subset: v1
+    timeout: 30s
+    retries:
+      attempts: 2
+      perTryTimeout: 10s
+      retryOn: 5xx,reset,connect-failure
+    # Prevent cascading timeouts
+    headers:
+      request:
+        set:
+          x-timeout-budget: "25s"  # Leave buffer for downstream
+---
+# Cross-Origin Resource Sharing (CORS)
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: cors-policy
+  namespace: infrastructure
+spec:
+  hosts:
+  - "api.nilecare.sd"
+  gateways:
+  - nilecare-gateway
+  http:
+  - corsPolicy:
+      allowOrigins:
+      - exact: "https://dashboard.nilecare.sd"
+      - exact: "https://mobile.nilecare.sd"
+      - regex: "https://.*\\.nilecare\\.sd"
+      allowMethods:
+      - GET
+      - POST
+      - PUT
+      - PATCH
+      - DELETE
+      - OPTIONS
+      allowHeaders:
+      - authorization
+      - content-type
+      - x-request-id
+      - x-user-id
+      - x-role
+      - x-facility-id
+      - x-tenant-id
+      exposeHeaders:
+      - content-length
+      - content-type
+      - x-request-id
+      - x-response-time
+      maxAge: "24h"
+      allowCredentials: true
+    route:
+    - destination:
+        host: gateway-service.infrastructure.svc.cluster.local
+        port:
+          number: 3000

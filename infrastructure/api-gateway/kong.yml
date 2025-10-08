@@ -1,0 +1,360 @@
+_format_version: "3.0"
+
+services:
+  # Clinical Service
+  - name: clinical-service
+    url: http://clinical-service:3001
+    routes:
+      - name: clinical-routes
+        paths:
+          - /api/v1/patients
+          - /api/v1/encounters
+          - /api/v1/medications
+          - /api/v1/diagnostics
+          - /api/v1/fhir
+        methods:
+          - GET
+          - POST
+          - PUT
+          - PATCH
+          - DELETE
+        strip_path: false
+        plugins:
+          - name: cors
+            config:
+              origins:
+                - "*"
+              methods:
+                - GET
+                - POST
+                - PUT
+                - PATCH
+                - DELETE
+                - OPTIONS
+              headers:
+                - Accept
+                - Accept-Version
+                - Content-Length
+                - Content-MD5
+                - Content-Type
+                - Date
+                - Authorization
+                - X-Requested-With
+              exposed_headers:
+                - X-Auth-Token
+              credentials: true
+              max_age: 3600
+              preflight_continue: false
+          - name: rate-limiting
+            config:
+              minute: 100
+              hour: 1000
+              policy: local
+              fault_tolerant: true
+              hide_client_headers: false
+          - name: jwt
+            config:
+              secret_is_base64: false
+              key_claim_name: iss
+              algorithm: HS256
+          - name: request-validator
+            config:
+              parameter_schema:
+                type: object
+                properties:
+                  page:
+                    type: integer
+                    minimum: 1
+                    default: 1
+                  limit:
+                    type: integer
+                    minimum: 1
+                    maximum: 100
+                    default: 10
+              body_schema:
+                type: object
+                additionalProperties: true
+          - name: prometheus
+            config:
+              per_consumer: true
+              status_code_metrics: true
+              latency_metrics: true
+              bandwidth_metrics: true
+              upstream_health_metrics: true
+
+  # Business Service
+  - name: business-service
+    url: http://business-service:3002
+    routes:
+      - name: business-routes
+        paths:
+          - /api/v1/appointments
+          - /api/v1/billing
+          - /api/v1/scheduling
+          - /api/v1/staff
+        methods:
+          - GET
+          - POST
+          - PUT
+          - PATCH
+          - DELETE
+        strip_path: false
+        plugins:
+          - name: cors
+            config:
+              origins:
+                - "*"
+              methods:
+                - GET
+                - POST
+                - PUT
+                - PATCH
+                - DELETE
+                - OPTIONS
+              headers:
+                - Accept
+                - Accept-Version
+                - Content-Length
+                - Content-MD5
+                - Content-Type
+                - Date
+                - Authorization
+                - X-Requested-With
+              exposed_headers:
+                - X-Auth-Token
+              credentials: true
+              max_age: 3600
+              preflight_continue: false
+          - name: rate-limiting
+            config:
+              minute: 100
+              hour: 1000
+              policy: local
+              fault_tolerant: true
+              hide_client_headers: false
+          - name: jwt
+            config:
+              secret_is_base64: false
+              key_claim_name: iss
+              algorithm: HS256
+          - name: prometheus
+            config:
+              per_consumer: true
+              status_code_metrics: true
+              latency_metrics: true
+              bandwidth_metrics: true
+              upstream_health_metrics: true
+
+  # Data Service
+  - name: data-service
+    url: http://data-service:3003
+    routes:
+      - name: data-routes
+        paths:
+          - /api/v1/analytics
+          - /api/v1/reports
+          - /api/v1/dashboard
+          - /api/v1/insights
+        methods:
+          - GET
+          - POST
+          - PUT
+          - PATCH
+          - DELETE
+        strip_path: false
+        plugins:
+          - name: cors
+            config:
+              origins:
+                - "*"
+              methods:
+                - GET
+                - POST
+                - PUT
+                - PATCH
+                - DELETE
+                - OPTIONS
+              headers:
+                - Accept
+                - Accept-Version
+                - Content-Length
+                - Content-MD5
+                - Content-Type
+                - Date
+                - Authorization
+                - X-Requested-With
+              exposed_headers:
+                - X-Auth-Token
+              credentials: true
+              max_age: 3600
+              preflight_continue: false
+          - name: rate-limiting
+            config:
+              minute: 50
+              hour: 500
+              policy: local
+              fault_tolerant: true
+              hide_client_headers: false
+          - name: jwt
+            config:
+              secret_is_base64: false
+              key_claim_name: iss
+              algorithm: HS256
+          - name: prometheus
+            config:
+              per_consumer: true
+              status_code_metrics: true
+              latency_metrics: true
+              bandwidth_metrics: true
+              upstream_health_metrics: true
+
+  # Authentication Service
+  - name: auth-service
+    url: http://auth-service:3004
+    routes:
+      - name: auth-routes
+        paths:
+          - /api/v1/auth
+        methods:
+          - GET
+          - POST
+          - PUT
+          - PATCH
+        strip_path: false
+        plugins:
+          - name: cors
+            config:
+              origins:
+                - "*"
+              methods:
+                - GET
+                - POST
+                - PUT
+                - PATCH
+                - OPTIONS
+              headers:
+                - Accept
+                - Accept-Version
+                - Content-Length
+                - Content-MD5
+                - Content-Type
+                - Date
+                - Authorization
+                - X-Requested-With
+              exposed_headers:
+                - X-Auth-Token
+              credentials: true
+              max_age: 3600
+              preflight_continue: false
+          - name: rate-limiting
+            config:
+              minute: 20
+              hour: 200
+              policy: local
+              fault_tolerant: true
+              hide_client_headers: false
+          - name: prometheus
+            config:
+              per_consumer: true
+              status_code_metrics: true
+              latency_metrics: true
+              bandwidth_metrics: true
+              upstream_health_metrics: true
+
+  # Web Dashboard Service
+  - name: web-dashboard
+    url: http://web-dashboard:3000
+    routes:
+      - name: web-dashboard-routes
+        paths:
+          - /dashboard
+          - /admin
+          - /reports
+        methods:
+          - GET
+        strip_path: false
+        plugins:
+          - name: cors
+            config:
+              origins:
+                - "*"
+              methods:
+                - GET
+                - POST
+                - PUT
+                - PATCH
+                - DELETE
+                - OPTIONS
+              headers:
+                - Accept
+                - Accept-Version
+                - Content-Length
+                - Content-MD5
+                - Content-Type
+                - Date
+                - Authorization
+                - X-Requested-With
+              exposed_headers:
+                - X-Auth-Token
+              credentials: true
+              max_age: 3600
+              preflight_continue: false
+          - name: rate-limiting
+            config:
+              minute: 200
+              hour: 2000
+              policy: local
+              fault_tolerant: true
+              hide_client_headers: false
+          - name: jwt
+            config:
+              secret_is_base64: false
+              key_claim_name: iss
+              algorithm: HS256
+
+# Global plugins
+plugins:
+  - name: prometheus
+    config:
+      per_consumer: true
+      status_code_metrics: true
+      latency_metrics: true
+      bandwidth_metrics: true
+      upstream_health_metrics: true
+  - name: cors
+    config:
+      origins:
+        - "*"
+      methods:
+        - GET
+        - POST
+        - PUT
+        - PATCH
+        - DELETE
+        - OPTIONS
+      headers:
+        - Accept
+        - Accept-Version
+        - Content-Length
+        - Content-MD5
+        - Content-Type
+        - Date
+        - Authorization
+        - X-Requested-With
+      exposed_headers:
+        - X-Auth-Token
+      credentials: true
+      max_age: 3600
+      preflight_continue: false
+  - name: rate-limiting
+    config:
+      minute: 1000
+      hour: 10000
+      policy: local
+      fault_tolerant: true
+      hide_client_headers: false
+  - name: request-size-limiting
+    config:
+      allowed_payload_size: 10
+      size_unit: megabytes
+      require_content_length: false

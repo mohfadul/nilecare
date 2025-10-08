@@ -1,0 +1,153 @@
+# =====================================================
+# Istio Telemetry Configuration
+# Purpose: Metrics, tracing, and access logging
+# Sudan-specific: Custom metrics for Sudan healthcare
+# =====================================================
+
+# Telemetry Configuration
+apiVersion: telemetry.istio.io/v1alpha1
+kind: Telemetry
+metadata:
+  name: default-telemetry
+  namespace: istio-system
+spec:
+  # Access Logging
+  accessLogging:
+  - providers:
+    - name: envoy
+    filter:
+      expression: "response.code >= 400"  # Log errors only
+  
+  # Metrics
+  metrics:
+  - providers:
+    - name: prometheus
+    overrides:
+    # Request duration
+    - match:
+        metric: REQUEST_DURATION
+      tagOverrides:
+        request_protocol:
+          operation: REMOVE
+    
+    # Request count with custom dimensions
+    - match:
+        metric: REQUEST_COUNT
+      tagOverrides:
+        destination_service:
+          value: destination.service.name
+        destination_version:
+          value: destination.workload.name
+        source_service:
+          value: source.service.name
+        response_code:
+          value: response.code
+        user_role:
+          value: request.headers['x-role']
+        facility_id:
+          value: request.headers['x-facility-id']
+  
+  # Distributed Tracing
+  tracing:
+  - providers:
+    - name: jaeger
+    randomSamplingPercentage: 10.0  # Sample 10% of requests
+    customTags:
+      user_id:
+        header:
+          name: x-user-id
+      user_role:
+        header:
+          name: x-role
+      facility_id:
+        header:
+          name: x-facility-id
+      tenant_id:
+        header:
+          name: x-tenant-id
+      request_id:
+        header:
+          name: x-request-id
+      sudan_state:
+        header:
+          name: x-sudan-state
+---
+# Custom Metrics for Sudan Healthcare
+apiVersion: telemetry.istio.io/v1alpha1
+kind: Telemetry
+metadata:
+  name: sudan-healthcare-metrics
+  namespace: clinical
+spec:
+  metrics:
+  - providers:
+    - name: prometheus
+    dimensions:
+      sudan_state:
+        value: request.headers['x-sudan-state']
+      facility_type:
+        value: request.headers['x-facility-type']
+      patient_language:
+        value: request.headers['x-patient-language']
+      insurance_type:
+        value: request.headers['x-insurance-type']
+---
+# Access Logging for Audit
+apiVersion: telemetry.istio.io/v1alpha1
+kind: Telemetry
+metadata:
+  name: phi-access-logging
+  namespace: clinical
+spec:
+  accessLogging:
+  - providers:
+    - name: envoy
+    filter:
+      expression: "request.url_path.matches('/api/v1/ehr/patients')"
+    # Log all PHI access
+---
+# Tracing for Critical Services
+apiVersion: telemetry.istio.io/v1alpha1
+kind: Telemetry
+metadata:
+  name: critical-service-tracing
+  namespace: business
+spec:
+  selector:
+    matchLabels:
+      app: billing-service
+  tracing:
+  - providers:
+    - name: jaeger
+    randomSamplingPercentage: 100.0  # Trace all billing requests
+    customTags:
+      transaction_id:
+        header:
+          name: x-transaction-id
+      payment_method:
+        header:
+          name: x-payment-method
+      amount:
+        header:
+          name: x-amount
+---
+# Metrics for Device Integration
+apiVersion: telemetry.istio.io/v1alpha1
+kind: Telemetry
+metadata:
+  name: device-metrics
+  namespace: integration
+spec:
+  selector:
+    matchLabels:
+      app: device-integration-service
+  metrics:
+  - providers:
+    - name: prometheus
+    dimensions:
+      device_type:
+        value: request.headers['x-device-type']
+      device_id:
+        value: request.headers['x-device-id']
+      vital_sign_type:
+        value: request.headers['x-vital-sign-type']

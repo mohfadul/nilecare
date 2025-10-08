@@ -1,0 +1,354 @@
+# =====================================================
+# Istio Security Policies
+# Purpose: mTLS, Authorization, Request Authentication
+# Sudan-specific: Role-based authorization for Sudan healthcare
+# =====================================================
+
+# Peer Authentication (mTLS)
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default-mtls
+  namespace: istio-system
+spec:
+  mtls:
+    mode: STRICT  # Enforce mTLS for all services
+---
+# Namespace-level mTLS
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: clinical-mtls
+  namespace: clinical
+spec:
+  mtls:
+    mode: STRICT
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: business-mtls
+  namespace: business
+spec:
+  mtls:
+    mode: STRICT
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: integration-mtls
+  namespace: integration
+spec:
+  mtls:
+    mode: STRICT
+---
+# Request Authentication (JWT)
+apiVersion: security.istio.io/v1beta1
+kind: RequestAuthentication
+metadata:
+  name: jwt-auth
+  namespace: infrastructure
+spec:
+  selector:
+    matchLabels:
+      app: gateway-service
+  jwtRules:
+  - issuer: "nilecare.sd"
+    audiences:
+    - "nilecare-api"
+    jwksUri: "https://auth-service.infrastructure.svc.cluster.local:3001/.well-known/jwks.json"
+    forwardOriginalToken: true
+    outputPayloadToHeader: "x-jwt-payload"
+---
+# Authorization Policy - Default Deny All
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: deny-all
+  namespace: clinical
+spec:
+  {}  # Empty spec = deny all by default
+---
+# Authorization Policy - Allow Authenticated Users
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-authenticated
+  namespace: clinical
+spec:
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/infrastructure/sa/gateway-service-sa"]
+    to:
+    - operation:
+        methods: ["GET", "POST", "PUT", "PATCH", "DELETE"]
+    when:
+    - key: request.auth.claims[iss]
+      values: ["nilecare.sd"]
+---
+# Authorization Policy - EHR Service (Role-Based)
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: ehr-service-rbac
+  namespace: clinical
+spec:
+  selector:
+    matchLabels:
+      app: ehr-service
+  action: ALLOW
+  rules:
+  # Physicians - Full Access
+  - from:
+    - source:
+        principals: ["cluster.local/ns/infrastructure/sa/gateway-service-sa"]
+    to:
+    - operation:
+        methods: ["GET", "POST", "PUT", "PATCH", "DELETE"]
+        paths: ["/api/v1/ehr/*"]
+    when:
+    - key: request.headers[x-role]
+      values: ["physician", "system_admin"]
+  
+  # Nurses - Read/Write (Limited)
+  - from:
+    - source:
+        principals: ["cluster.local/ns/infrastructure/sa/gateway-service-sa"]
+    to:
+    - operation:
+        methods: ["GET", "POST", "PUT"]
+        paths: ["/api/v1/ehr/*"]
+    when:
+    - key: request.headers[x-role]
+      values: ["nurse"]
+  
+  # Pharmacists - Read Only (Medications)
+  - from:
+    - source:
+        principals: ["cluster.local/ns/infrastructure/sa/gateway-service-sa"]
+    to:
+    - operation:
+        methods: ["GET"]
+        paths: ["/api/v1/ehr/medications/*"]
+    when:
+    - key: request.headers[x-role]
+      values: ["pharmacist"]
+  
+  # Lab Technicians - Read/Write (Lab Results)
+  - from:
+    - source:
+        principals: ["cluster.local/ns/infrastructure/sa/gateway-service-sa"]
+    to:
+    - operation:
+        methods: ["GET", "POST", "PUT"]
+        paths: ["/api/v1/ehr/lab-results/*"]
+    when:
+    - key: request.headers[x-role]
+      values: ["lab_technician"]
+  
+  # Receptionists - Read Only (Demographics)
+  - from:
+    - source:
+        principals: ["cluster.local/ns/infrastructure/sa/gateway-service-sa"]
+    to:
+    - operation:
+        methods: ["GET"]
+        paths: ["/api/v1/ehr/patients/*/demographics"]
+    when:
+    - key: request.headers[x-role]
+      values: ["receptionist"]
+---
+# Authorization Policy - Sudan National ID Access
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: sudan-national-id-access
+  namespace: clinical
+spec:
+  selector:
+    matchLabels:
+      app: ehr-service
+  action: ALLOW
+  rules:
+  # Only physicians and system admins can access Sudan National ID
+  - from:
+    - source:
+        principals: ["cluster.local/ns/infrastructure/sa/gateway-service-sa"]
+    to:
+    - operation:
+        methods: ["GET"]
+        paths: ["/api/v1/ehr/patients/*/national-id"]
+    when:
+    - key: request.headers[x-role]
+      values: ["physician", "system_admin"]
+    - key: request.headers[x-access-reason]
+      notValues: [""]  # Must provide access reason
+---
+# Authorization Policy - Billing Service
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: billing-service-rbac
+  namespace: business
+spec:
+  selector:
+    matchLabels:
+      app: billing-service
+  action: ALLOW
+  rules:
+  # Billing specialists - Full Access
+  - from:
+    - source:
+        principals: ["cluster.local/ns/infrastructure/sa/gateway-service-sa"]
+    to:
+    - operation:
+        methods: ["GET", "POST", "PUT", "DELETE"]
+    when:
+    - key: request.headers[x-role]
+      values: ["billing_specialist", "system_admin"]
+  
+  # Physicians - Read Only
+  - from:
+    - source:
+        principals: ["cluster.local/ns/infrastructure/sa/gateway-service-sa"]
+    to:
+    - operation:
+        methods: ["GET"]
+    when:
+    - key: request.headers[x-role]
+      values: ["physician"]
+---
+# Authorization Policy - FHIR Service (SMART on FHIR)
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: fhir-service-smart
+  namespace: integration
+spec:
+  selector:
+    matchLabels:
+      app: fhir-service
+  action: ALLOW
+  rules:
+  # Allow SMART on FHIR apps with valid OAuth token
+  - from:
+    - source:
+        requestPrincipals: ["*"]
+    to:
+    - operation:
+        methods: ["GET", "POST", "PUT", "DELETE"]
+        paths: ["/fhir/*"]
+    when:
+    - key: request.auth.claims[aud]
+      values: ["nilecare-api"]
+    - key: request.auth.claims[scope]
+      notValues: [""]
+  
+  # Allow OAuth endpoints (no auth required)
+  - to:
+    - operation:
+        methods: ["GET", "POST"]
+        paths: ["/oauth2/*", "/.well-known/*"]
+---
+# Authorization Policy - Device Integration (Device Authentication)
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: device-integration-auth
+  namespace: integration
+spec:
+  selector:
+    matchLabels:
+      app: device-integration-service
+  action: ALLOW
+  rules:
+  # Allow authenticated devices
+  - from:
+    - source:
+        principals: ["cluster.local/ns/infrastructure/sa/gateway-service-sa"]
+    to:
+    - operation:
+        methods: ["GET", "POST", "PUT"]
+    when:
+    - key: request.headers[x-device-id]
+      notValues: [""]
+    - key: request.headers[x-device-token]
+      notValues: [""]
+---
+# Authorization Policy - Inter-Service Communication
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: inter-service-communication
+  namespace: clinical
+spec:
+  action: ALLOW
+  rules:
+  # Allow communication from other services
+  - from:
+    - source:
+        namespaces: ["clinical", "business", "integration", "infrastructure"]
+    to:
+    - operation:
+        methods: ["GET", "POST", "PUT", "DELETE"]
+---
+# Authorization Policy - Monitoring Access
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-prometheus
+  namespace: clinical
+spec:
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        namespaces: ["monitoring"]
+    to:
+    - operation:
+        methods: ["GET"]
+        paths: ["/metrics", "/health"]
+---
+# Authorization Policy - Deny Sudan National ID Export
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: deny-national-id-export
+  namespace: clinical
+spec:
+  selector:
+    matchLabels:
+      app: ehr-service
+  action: DENY
+  rules:
+  # Deny bulk export of Sudan National IDs
+  - to:
+    - operation:
+        methods: ["GET", "POST"]
+        paths: ["/api/v1/ehr/patients/export"]
+    when:
+    - key: request.headers[x-include-national-id]
+      values: ["true"]
+    - key: request.headers[x-role]
+      notValues: ["system_admin", "compliance_officer"]
+---
+# Authorization Policy - Rate Limiting by Role
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: rate-limit-by-role
+  namespace: clinical
+spec:
+  action: CUSTOM
+  provider:
+    name: "envoy.ext_authz"
+  rules:
+  - to:
+    - operation:
+        methods: ["GET", "POST", "PUT", "DELETE"]
+    when:
+    - key: request.headers[x-role]
+      values: ["patient", "receptionist"]
+  # Patients and receptionists have stricter rate limits
