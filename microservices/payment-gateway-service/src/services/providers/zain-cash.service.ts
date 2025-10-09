@@ -97,7 +97,7 @@ export class ZainCashService extends BasePaymentProvider {
   /**
    * Verify payment status with Zain Cash
    */
-  async verifyPayment(payment: PaymentEntity, verificationCode?: string): Promise<VerificationResult> {
+  async verifyPayment(payment: PaymentEntity, _verificationCode?: string): Promise<VerificationResult> {
     try {
       const response = await axios.get(
         `${this.baseURL}/api/v1/payments/${payment.transactionId}/status`,

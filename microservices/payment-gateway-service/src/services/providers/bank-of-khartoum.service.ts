@@ -3,10 +3,10 @@
  * Handles payments through Bank of Khartoum
  */
 
-import axios from 'axios';
+// import axios from 'axios';
 import { BasePaymentProvider, PaymentResult, VerificationResult, RefundResult } from './base-provider.service';
 import { CreatePaymentDto } from '../../dtos/create-payment.dto';
-import { PaymentEntity, PaymentStatus } from '../../entities/payment.entity';
+import { PaymentEntity } from '../../entities/payment.entity';
 
 export class BankOfKhartoumService extends BasePaymentProvider {
   constructor(providerConfig: any) {
@@ -17,7 +17,7 @@ export class BankOfKhartoumService extends BasePaymentProvider {
    * Process payment through Bank of Khartoum
    * Currently supports manual verification with future API integration
    */
-  async processPayment(paymentData: CreatePaymentDto, payment: PaymentEntity): Promise<PaymentResult> {
+  async processPayment(paymentData: CreatePaymentDto, _payment: PaymentEntity): Promise<PaymentResult> {
     try {
       this.validatePaymentData(paymentData);
 
@@ -51,7 +51,7 @@ export class BankOfKhartoumService extends BasePaymentProvider {
   /**
    * Verify payment manually by admin
    */
-  async verifyPayment(payment: PaymentEntity, verificationCode?: string): Promise<VerificationResult> {
+  async verifyPayment(_payment: PaymentEntity, _verificationCode?: string): Promise<VerificationResult> {
     try {
       // In future: Call Bank of Khartoum API to verify transaction
       // For now: Manual verification process
@@ -102,7 +102,7 @@ export class BankOfKhartoumService extends BasePaymentProvider {
   /**
    * Refund payment through Bank of Khartoum
    */
-  async refundPayment(payment: PaymentEntity, amount: number, reason: string): Promise<RefundResult> {
+  async refundPayment(_payment: PaymentEntity, _amount: number, _reason: string): Promise<RefundResult> {
     try {
       // In future: Call Bank of Khartoum refund API
       // For now: Manual refund process
@@ -126,7 +126,7 @@ export class BankOfKhartoumService extends BasePaymentProvider {
   /**
    * Get payment status from Bank of Khartoum API
    */
-  async getPaymentStatus(transactionId: string): Promise<any> {
+  async getPaymentStatus(_transactionId: string): Promise<any> {
     try {
       // Future implementation
       /*

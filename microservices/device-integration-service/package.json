@@ -45,7 +45,6 @@
     "usb": "^2.9.0",
     "node-hid": "^2.2.0",
     "influx": "^5.9.3",
-    "timescaledb": "^0.1.0",
     "csv-parser": "^3.0.0"
   },
   "devDependencies": {

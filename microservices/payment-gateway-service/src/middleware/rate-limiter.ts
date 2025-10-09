@@ -30,15 +30,14 @@ export const rateLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  store: new RedisStore({
-    // @ts-expect-error - Redis client type mismatch
-    client: redis,
-    prefix: 'rate_limit:'
-  }),
+  ...(redis && { store: new RedisStore({
+    // @ts-ignore - Type compatibility with rate-limit-redis
+    sendCommand: (...args: any[]) => redis.call(...args)
+  } as any) }),
   keyGenerator: (req) => {
     return (req as any).user?.id || req.ip || 'anonymous';
   },
-  handler: (req, res) => {
+  handler: (_req, res) => {
     res.status(429).json({
       success: false,
       error: {
@@ -65,11 +64,10 @@ export const paymentRateLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  store: new RedisStore({
-    // @ts-expect-error - Redis client type mismatch
-    client: redis,
-    prefix: 'payment_rate_limit:'
-  }),
+  ...(redis && { store: new RedisStore({
+    // @ts-ignore - Type compatibility with rate-limit-redis
+    sendCommand: (...args: any[]) => redis.call(...args)
+  } as any) }),
   keyGenerator: (req) => {
     // Rate limit by user ID for authenticated requests
     return (req as any).user?.id || req.ip || 'anonymous';
@@ -88,11 +86,10 @@ export const webhookRateLimiter = rateLimit({
   max: 1000,
   standardHeaders: true,
   legacyHeaders: false,
-  store: new RedisStore({
-    // @ts-expect-error - Redis client type mismatch
-    client: redis,
-    prefix: 'webhook_rate_limit:'
-  }),
+  ...(redis && { store: new RedisStore({
+    // @ts-ignore - Type compatibility with rate-limit-redis
+    sendCommand: (...args: any[]) => redis.call(...args)
+  } as any) }),
   keyGenerator: (req) => {
     // Rate limit by provider
     return `webhook_${req.params.provider}`;

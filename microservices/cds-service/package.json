@@ -33,7 +33,6 @@
     "swagger-ui-express": "^5.0.0",
     "swagger-jsdoc": "^6.2.8",
     "fhir": "^4.2.0",
-    "hl7": "^0.0.8",
     "moment": "^2.29.4",
     "lodash": "^4.17.21",
     "axios": "^1.6.2",
@@ -43,10 +42,7 @@
     "compromise": "^14.10.0",
     "ml-matrix": "^6.10.4",
     "brain.js": "^2.0.0-beta.2",
-    "tensorflow": "^4.15.0",
-    "node-nlp": "^4.27.0",
-    "drug-interaction-checker": "^1.0.0",
-    "medical-terminology": "^2.1.0"
+    "node-nlp": "^4.27.0"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
@@ -61,7 +57,7 @@
     "@types/lodash": "^4.14.202",
     "@types/xml2js": "^0.4.14",
     "@types/cheerio": "^0.22.35",
-    "@types/natural": "^6.0.2",
+    "@types/natural": "^5.1.5",
     "@types/jest": "^29.5.8",
     "@types/node": "^20.10.0",
     "typescript": "^5.3.0",

@@ -35,11 +35,6 @@ export class DatabaseConfig {
 
     // Test connection on startup
     this.testConnection();
-
-    // Handle pool errors
-    this.pool.on('error', (err) => {
-      console.error('Database pool error:', err);
-    });
   }
 
   /**

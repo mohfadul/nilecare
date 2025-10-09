@@ -33,8 +33,7 @@
     "express-validator": "^7.0.1",
     "swagger-ui-express": "^5.0.0",
     "swagger-jsdoc": "^6.2.8",
-    "fhir": "^4.2.0",
-    "hl7": "^0.0.8"
+    "fhir": "^4.2.0"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",

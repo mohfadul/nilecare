@@ -95,10 +95,10 @@ const MobileWalletForm: React.FC<MobileWalletFormProps> = ({
           invoiceId: invoice.id,
           patientId: invoice.patientId,
           facilityId: invoice.facilityId,
-          providerName: provider.id,
+          provider: provider.id, // ✅ Fixed: was 'providerName'
           amount: invoice.totalAmount,
           currency: invoice.currency || 'SDG',
-          phoneNumber: phoneNumber,
+          description: `Payment for invoice ${invoice.invoiceNumber}`, // ✅ Added: required field
           paymentMethodDetails: {
             phoneNumber: phoneNumber,
             walletName: provider.displayName

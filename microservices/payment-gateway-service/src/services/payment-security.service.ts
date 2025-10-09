@@ -251,7 +251,7 @@ export class PaymentSecurityService {
    * Private helper methods
    */
 
-  private async checkDuplicatePayment(paymentData: CreatePaymentDto): Promise<boolean> {
+  private async checkDuplicatePayment(_paymentData: CreatePaymentDto): Promise<boolean> {
     // In production: Check for duplicate payments within last 5 minutes
     // const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
     // const duplicate = await this.paymentRepository.findOne({
@@ -266,7 +266,7 @@ export class PaymentSecurityService {
     return false;
   }
 
-  private async validatePatientInvoiceRelationship(paymentData: CreatePaymentDto): Promise<boolean> {
+  private async validatePatientInvoiceRelationship(_paymentData: CreatePaymentDto): Promise<boolean> {
     // In production: Verify patient owns the invoice
     // const invoice = await this.invoiceRepository.findOne({
     //   where: { id: paymentData.invoiceId }
@@ -276,7 +276,7 @@ export class PaymentSecurityService {
     return true;
   }
 
-  private async validateInvoiceStatus(invoiceId: string): Promise<boolean> {
+  private async validateInvoiceStatus(_invoiceId: string): Promise<boolean> {
     // In production: Check invoice is not already paid
     // const invoice = await this.invoiceRepository.findOne({
     //   where: { id: invoiceId }
@@ -294,7 +294,7 @@ export class PaymentSecurityService {
     return payment.amount > 50000; // Simple threshold for now
   }
 
-  private async hasHighVelocity(patientId: string): Promise<boolean> {
+  private async hasHighVelocity(_patientId: string): Promise<boolean> {
     // Check for multiple payments in short time
     // const recentPayments = await this.paymentRepository.count({
     //   where: {
@@ -313,7 +313,7 @@ export class PaymentSecurityService {
     return hour >= 23 || hour < 5;
   }
 
-  private async isFirstLargeTransaction(payment: PaymentEntity): Promise<boolean> {
+  private async isFirstLargeTransaction(_payment: PaymentEntity): Promise<boolean> {
     // Check if this is patient's first payment and it's large
     // const previousPayments = await this.paymentRepository.count({
     //   where: { patientId: payment.patientId }
@@ -323,7 +323,7 @@ export class PaymentSecurityService {
     return false;
   }
 
-  private async hasNegativeHistory(patientId: string): Promise<boolean> {
+  private async hasNegativeHistory(_patientId: string): Promise<boolean> {
     // Check for failed payments, chargebacks, disputes
     // const negativeEvents = await this.paymentRepository.count({
     //   where: {

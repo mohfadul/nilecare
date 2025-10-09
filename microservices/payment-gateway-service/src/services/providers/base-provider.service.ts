@@ -59,7 +59,7 @@ export abstract class BasePaymentProvider {
   /**
    * Refund payment (optional, can be overridden)
    */
-  async refundPayment(payment: PaymentEntity, amount: number, reason: string): Promise<RefundResult> {
+  async refundPayment(_payment: PaymentEntity, _amount: number, _reason: string): Promise<RefundResult> {
     return {
       success: false,
       status: 'failed',
@@ -70,14 +70,14 @@ export abstract class BasePaymentProvider {
   /**
    * Get payment status from provider (optional)
    */
-  async getPaymentStatus(transactionId: string): Promise<any> {
+  async getPaymentStatus(_transactionId: string): Promise<any> {
     return null;
   }
 
   /**
    * Handle webhook (optional)
    */
-  async handleWebhook(webhookData: any): Promise<void> {
+  async handleWebhook(_webhookData: any): Promise<void> {
     // Override in providers that support webhooks
   }
 

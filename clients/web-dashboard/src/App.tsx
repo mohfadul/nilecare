@@ -5,13 +5,12 @@
  */
 
 import React, { Suspense, lazy } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { AuthProvider, useAuth } from '@nilecare/auth';
-import { I18nProvider } from '@nilecare/i18n';
-import { ErrorBoundary } from './components/ErrorBoundary';
-import { DashboardLoading } from './components/DashboardLoading';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import ErrorBoundary from './components/ErrorBoundary';
+import DashboardLoading from './components/DashboardLoading';
 
 // Lazy load micro-frontends
 const SuperAdminDashboard = lazy(() => import('./apps/super-admin-dashboard'));

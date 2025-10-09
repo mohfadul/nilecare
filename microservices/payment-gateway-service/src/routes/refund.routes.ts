@@ -21,7 +21,7 @@ router.use(authGuard);
 router.post(
   '/',
   financeRoleGuard,
-  async (req, res) => {
+  async (_req, res) => {
     res.status(200).json({
       success: true,
       message: 'Create refund endpoint'
@@ -33,7 +33,7 @@ router.post(
  * Get refund by ID
  * GET /api/v1/refunds/:id
  */
-router.get('/:id', async (req, res) => {
+router.get('/:id', async (_req, res) => {
   res.status(200).json({
     success: true,
     message: 'Get refund endpoint'
@@ -48,7 +48,7 @@ router.get('/:id', async (req, res) => {
 router.patch(
   '/:id/approve',
   adminRoleGuard,
-  async (req, res) => {
+  async (_req, res) => {
     res.status(200).json({
       success: true,
       message: 'Approve refund endpoint'
@@ -64,7 +64,7 @@ router.patch(
 router.patch(
   '/:id/reject',
   adminRoleGuard,
-  async (req, res) => {
+  async (_req, res) => {
     res.status(200).json({
       success: true,
       message: 'Reject refund endpoint'

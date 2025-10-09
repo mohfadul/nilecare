@@ -45,7 +45,7 @@
     "express-session": "^1.17.3",
     "connect-redis": "^7.1.0",
     "cookie-parser": "^1.4.6",
-    "express-csrf": "^1.1.0",
+    "csurf": "^1.11.0",
     "argon2": "^0.31.2",
     "crypto": "^1.0.1",
     "otplib": "^12.0.1"
@@ -70,7 +70,7 @@
     "@types/qrcode": "^1.5.5",
     "@types/nodemailer": "^6.4.14",
     "@types/express-session": "^1.17.10",
-    "@types/connect-redis": "^7.1.0",
+    "@types/connect-redis": "^0.0.21",
     "@types/cookie-parser": "^1.4.6",
     "@types/jest": "^29.5.8",
     "@types/node": "^20.10.0",

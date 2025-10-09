@@ -3,7 +3,7 @@
  * Monitors payment system health and sends alerts
  */
 
-import { PaymentEntity, PaymentStatus } from '../entities/payment.entity';
+// import { PaymentEntity } from '../entities/payment.entity';
 
 export interface PaymentHealthStatus {
   totalPayments: number;
@@ -320,7 +320,7 @@ export class PaymentMonitoringService {
    * Metric collection methods
    */
 
-  private async getTotalPayments(startDate: Date, endDate: Date): Promise<number> {
+  private async getTotalPayments(_startDate: Date, _endDate: Date): Promise<number> {
     // In production: Query from database
     // return await this.paymentRepository.count({
     //   where: {
@@ -330,7 +330,7 @@ export class PaymentMonitoringService {
     return 0;
   }
 
-  private async getFailedPayments(startDate: Date, endDate: Date): Promise<number> {
+  private async getFailedPayments(_startDate: Date, _endDate: Date): Promise<number> {
     // In production: Query from database
     // return await this.paymentRepository.count({
     //   where: {
@@ -361,7 +361,7 @@ export class PaymentMonitoringService {
     return 0;
   }
 
-  private async getAverageProcessingTime(startDate: Date, endDate: Date): Promise<number> {
+  private async getAverageProcessingTime(_startDate: Date, _endDate: Date): Promise<number> {
     // In production: Calculate from confirmed payments
     // const confirmedPayments = await this.paymentRepository.find({
     //   where: {

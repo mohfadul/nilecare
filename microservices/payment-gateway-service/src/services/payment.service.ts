@@ -5,10 +5,8 @@
 
 import { CreatePaymentDto } from '../dtos/create-payment.dto';
 import { PaymentEntity, PaymentStatus } from '../entities/payment.entity';
-import { PaymentProviderEntity } from '../entities/payment-provider.entity';
 import { PaymentResult } from './providers/base-provider.service';
 import PaymentRepository from '../repositories/payment.repository';
-import ProviderRepository from '../repositories/provider.repository';
 
 // Import providers
 import BankOfKhartoumService from './providers/bank-of-khartoum.service';
@@ -29,12 +27,10 @@ export interface PaymentStatistics {
 export class PaymentService {
   private providers: Map<string, any>;
   private paymentRepository: PaymentRepository;
-  private providerRepository: ProviderRepository;
 
   constructor() {
     this.providers = new Map();
     this.paymentRepository = new PaymentRepository();
-    this.providerRepository = new ProviderRepository();
     this.initializeProviders();
   }
 
@@ -103,7 +99,7 @@ export class PaymentService {
         merchantReference: this.generateMerchantReference(),
         externalReference: createPaymentDto.externalReference,
         status: PaymentStatus.PENDING,
-        paymentMethodDetails: createPaymentDto.paymentMethodDetails,
+        paymentMethodDetails: this.convertPaymentMethodDetails(createPaymentDto.paymentMethodDetails),
         riskScore: 0,
         isFlaggedSuspicious: false,
         providerFee: 0,
@@ -176,7 +172,7 @@ export class PaymentService {
   /**
    * Cancel payment
    */
-  async cancelPayment(paymentId: string, reason: string, userId: string): Promise<any> {
+  async cancelPayment(paymentId: string, reason: string, _userId: string): Promise<any> {
     const payment = await this.getPaymentById(paymentId);
     
     if (!payment) {
@@ -316,7 +312,7 @@ export class PaymentService {
    * Private helper methods
    */
 
-  private async validateInvoice(invoiceId: string, amount: number): Promise<void> {
+  private async validateInvoice(_invoiceId: string, _amount: number): Promise<void> {
     // In production: Validate invoice exists and amount matches
     // const invoice = await this.invoiceService.getInvoice(invoiceId);
     // if (!invoice) {
@@ -372,7 +368,7 @@ export class PaymentService {
     return await this.paymentRepository.findByTransactionId(transactionId);
   }
 
-  private async performFraudDetection(payment: PaymentEntity): Promise<void> {
+  private async performFraudDetection(_payment: PaymentEntity): Promise<void> {
     // Implement fraud detection logic
     // - Check unusual amounts
     // - Check velocity (multiple payments in short time)
@@ -381,19 +377,36 @@ export class PaymentService {
     // Update payment.riskScore and payment.fraudFlags
   }
 
-  private async sendPaymentNotification(payment: PaymentEntity, eventType: string): Promise<void> {
+  private async sendPaymentNotification(_payment: PaymentEntity, _eventType: string): Promise<void> {
     // Send notification to patient
     // await this.notificationService.sendPaymentNotification(payment.patientId, eventType, payment);
-    console.log('Notification sent:', eventType);
+    console.log('Notification sent:', _eventType);
   }
 
-  private async publishPaymentEvent(eventType: string, payment: PaymentEntity): Promise<void> {
+  private async publishPaymentEvent(_eventType: string, _payment: PaymentEntity): Promise<void> {
     // Publish to Kafka
     // await this.eventPublisher.publish('payment-events', {
     //   eventType,
     //   payment
     // });
-    console.log('Event published:', eventType);
+    console.log('Event published:', _eventType);
+  }
+
+  /**
+   * Convert DTO payment method details to entity format
+   * Handles string to Date conversions
+   */
+  private convertPaymentMethodDetails(details: any): any {
+    if (!details) return details;
+
+    const converted = { ...details };
+
+    // Convert chequeDate from string to Date if needed
+    if (converted.chequeDate && typeof converted.chequeDate === 'string') {
+      converted.chequeDate = new Date(converted.chequeDate);
+    }
+
+    return converted;
   }
 }
 

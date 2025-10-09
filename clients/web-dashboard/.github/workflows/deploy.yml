@@ -1,0 +1,102 @@
+name: Frontend CI/CD
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'clients/web-dashboard/**'
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: clients/web-dashboard/package-lock.json
+
+      - name: Install dependencies
+        working-directory: clients/web-dashboard
+        run: npm ci
+
+      - name: Lint
+        working-directory: clients/web-dashboard
+        run: npm run lint
+
+      - name: Type check
+        working-directory: clients/web-dashboard
+        run: npm run type-check
+
+      - name: Run tests
+        working-directory: clients/web-dashboard
+        run: npm test
+
+      - name: Build
+        working-directory: clients/web-dashboard
+        run: npm run build
+        env:
+          VITE_API_BASE_URL: ${{ secrets.API_BASE_URL }}
+          VITE_WS_URL: ${{ secrets.WS_URL }}
+          VITE_APP_VERSION: ${{ github.sha }}
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: frontend-build
+          path: clients/web-dashboard/dist
+
+  deploy-production:
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: frontend-build
+          path: dist
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: me-south-1
+
+      - name: Deploy to S3
+        run: |
+          aws s3 sync dist/ s3://nilecare-frontend --delete \
+            --cache-control "public, max-age=31536000, immutable" \
+            --exclude "*.html" \
+            --exclude "service-worker.js"
+          
+          aws s3 sync dist/ s3://nilecare-frontend \
+            --exclude "*" \
+            --include "*.html" \
+            --include "service-worker.js" \
+            --cache-control "public, max-age=0, must-revalidate"
+
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
+            --paths "/*"
+
+      - name: Notify deployment
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          text: 'Frontend deployed to production!'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+        if: always()
+

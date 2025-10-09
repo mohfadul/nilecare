@@ -22,7 +22,7 @@ router.use(financeRoleGuard);
 router.post(
   '/',
   validateBody(ReconciliationDtoValidator.schema),
-  async (req, res) => {
+  async (_req, res) => {
     res.status(200).json({
       success: true,
       message: 'Reconciliation endpoint - implementation in progress'
@@ -34,7 +34,7 @@ router.post(
  * Get reconciliation by ID
  * GET /api/v1/reconciliation/:id
  */
-router.get('/:id', async (req, res) => {
+router.get('/:id', async (_req, res) => {
   res.status(200).json({
     success: true,
     message: 'Get reconciliation endpoint'
@@ -48,7 +48,7 @@ router.get('/:id', async (req, res) => {
 router.post(
   '/resolve',
   validateBody(ReconciliationDtoValidator.resolveSchema),
-  async (req, res) => {
+  async (_req, res) => {
     res.status(200).json({
       success: true,
       message: 'Resolve discrepancy endpoint'

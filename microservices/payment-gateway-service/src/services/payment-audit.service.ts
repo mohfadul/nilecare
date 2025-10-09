@@ -6,6 +6,7 @@
 
 import DatabaseConfig from '../config/database.config';
 import { PaymentEntity } from '../entities/payment.entity';
+import { generateRandomHex } from './crypto-helper';
 
 export interface AuditLog {
   id: string;
@@ -195,7 +196,7 @@ export class PaymentAuditService {
   /**
    * Get audit trail for payment
    */
-  async getPaymentAuditTrail(paymentId: string): Promise<AuditLog[]> {
+  async getPaymentAuditTrail(_paymentId: string): Promise<AuditLog[]> {
     // In production: Query from audit log table
     // Would use a separate audit database or PostgreSQL for immutability
     return [];
@@ -204,7 +205,7 @@ export class PaymentAuditService {
   /**
    * Get audit logs for user
    */
-  async getUserAuditLogs(userId: string, limit: number = 100): Promise<AuditLog[]> {
+  async getUserAuditLogs(_userId: string, _limit: number = 100): Promise<AuditLog[]> {
     // In production: Query audit logs for user
     return [];
   }
@@ -255,7 +256,7 @@ export class PaymentAuditService {
    * Generate audit log ID
    */
   private generateAuditId(): string {
-    return `AUDIT-${Date.now()}-${crypto.randomBytes(8).toString('hex')}`;
+    return `AUDIT-${Date.now()}-${generateRandomHex(8)}`;
   }
 }
 

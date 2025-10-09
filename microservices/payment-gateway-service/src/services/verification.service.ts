@@ -203,12 +203,19 @@ export class VerificationService {
    * Get verification statistics
    */
   async getVerificationStatistics(filters: any): Promise<any> {
-    // In production: Query from database
+    // In production: Query from database with filters
+    const { payments } = await this.paymentRepository.findWithFilters(
+      { ...filters, status: PaymentStatus.AWAITING_VERIFICATION },
+      1,
+      1000
+    );
+
     return {
-      totalPending: 0,
+      totalPending: payments.length,
       averageVerificationTime: 0,
       verificationsByMethod: {},
-      verificationsByUser: {}
+      verificationsByUser: {},
+      filteredResults: payments
     };
   }
 
@@ -273,12 +280,12 @@ export class VerificationService {
 
   private async sendVerificationNotification(payment: PaymentEntity, eventType: string): Promise<void> {
     // Send notification
-    console.log('Verification notification sent:', eventType);
+    console.log('Verification notification sent:', eventType, 'for payment:', payment.id);
   }
 
   private async publishPaymentEvent(eventType: string, payment: PaymentEntity): Promise<void> {
     // Publish to Kafka
-    console.log('Event published:', eventType);
+    console.log('Event published:', eventType, 'for payment:', payment.id, 'amount:', payment.amount);
   }
 }
 

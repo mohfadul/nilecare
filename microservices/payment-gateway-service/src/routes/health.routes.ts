@@ -12,7 +12,7 @@ const router = Router();
  * Liveness probe
  * GET /health
  */
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', async (_req: Request, res: Response) => {
   res.status(200).json({
     status: 'ok',
     service: 'payment-gateway-service',
@@ -24,7 +24,7 @@ router.get('/', async (req: Request, res: Response) => {
  * Readiness probe
  * GET /ready
  */
-router.get('/ready', async (req: Request, res: Response) => {
+router.get('/ready', async (_req: Request, res: Response) => {
   try {
     // Check database connection
     await DatabaseConfig.query('SELECT 1');

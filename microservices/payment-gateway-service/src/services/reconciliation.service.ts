@@ -252,7 +252,7 @@ export class ReconciliationService {
    * Private helper methods
    */
 
-  private async findPaymentByExternalTransaction(externalTx: ReconciliationDto): Promise<PaymentEntity | null> {
+  private async findPaymentByExternalTransaction(_externalTx: ReconciliationDto): Promise<PaymentEntity | null> {
     // In production: Query from database
     // Try multiple matching strategies:
     // 1. Match by external transaction ID
@@ -275,7 +275,7 @@ export class ReconciliationService {
     return null;
   }
 
-  private async checkForMissingExternalTransactions(externalTransactions: ReconciliationDto[]): Promise<void> {
+  private async checkForMissingExternalTransactions(_externalTransactions: ReconciliationDto[]): Promise<void> {
     // Find system payments that don't have corresponding external transactions
     // These could indicate duplicate payments or missing provider reports
   }
@@ -296,8 +296,8 @@ export class ReconciliationService {
   }
 
   private async getReconciliationsByPeriod(
-    startDate: Date,
-    endDate: Date
+    _startDate: Date,
+    _endDate: Date
   ): Promise<ReconciliationEntity[]> {
     // In production: Query from database
     // return await this.reconciliationRepository.find({
@@ -310,9 +310,9 @@ export class ReconciliationService {
   }
 
   private async getReconciliationIssues(
-    provider: string,
-    startDate: Date,
-    endDate: Date
+    _provider: string,
+    _startDate: Date,
+    _endDate: Date
   ): Promise<ReconciliationEntity[]> {
     return await this.reconciliationRepository.findUnresolved();
   }

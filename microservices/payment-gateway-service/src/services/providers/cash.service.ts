@@ -16,7 +16,7 @@ export class CashService extends BasePaymentProvider {
    * Process cash payment
    * Generates receipt and marks for manual verification
    */
-  async processPayment(paymentData: CreatePaymentDto, payment: PaymentEntity): Promise<PaymentResult> {
+  async processPayment(paymentData: CreatePaymentDto, _payment: PaymentEntity): Promise<PaymentResult> {
     try {
       this.validatePaymentData(paymentData);
 
@@ -47,7 +47,7 @@ export class CashService extends BasePaymentProvider {
   /**
    * Verify cash payment manually
    */
-  async verifyPayment(payment: PaymentEntity, verificationCode?: string): Promise<VerificationResult> {
+  async verifyPayment(payment: PaymentEntity, _verificationCode?: string): Promise<VerificationResult> {
     try {
       // Validate cash payment details
       if (!payment.paymentMethodDetails?.receivedBy) {
@@ -85,7 +85,7 @@ export class CashService extends BasePaymentProvider {
    * Refund cash payment
    * Creates refund request for manual processing
    */
-  async refundPayment(payment: PaymentEntity, amount: number, reason: string): Promise<RefundResult> {
+  async refundPayment(_payment: PaymentEntity, _amount: number, _reason: string): Promise<RefundResult> {
     try {
       // Cash refunds are processed manually
       const refundId = `CASH-REFUND-${Date.now()}`;

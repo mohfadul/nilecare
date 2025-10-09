@@ -232,7 +232,7 @@ export class PaymentReportingService {
    * Private helper methods
    */
 
-  private async getPaymentsByCriteria(criteria: ReportCriteria): Promise<PaymentEntity[]> {
+  private async getPaymentsByCriteria(_criteria: ReportCriteria): Promise<PaymentEntity[]> {
     // In production: Query from database with filters
     // const where: any = {
     //   createdAt: Between(criteria.startDate, criteria.endDate)
