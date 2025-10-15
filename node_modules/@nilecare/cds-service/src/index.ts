@@ -38,6 +38,12 @@ import { setupEventHandlers } from './events/handlers';
 
 dotenv.config();
 
+// ✅ NEW: Import response wrapper middleware
+import {
+  requestIdMiddleware,
+  errorHandlerMiddleware,
+} from '@nilecare/response-wrapper';
+
 // Environment validation
 const REQUIRED_ENV_VARS = ['DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASSWORD'];
 function validateEnvironment() {
@@ -101,6 +107,9 @@ const swaggerOptions = {
 };
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
+
+// ✅ NEW: Add request ID middleware FIRST
+app.use(requestIdMiddleware);
 
 // Middleware
 app.use(helmet({
@@ -438,8 +447,8 @@ function calculateOverallRisk(
   };
 }
 
-// Error handling
-app.use(errorHandler);
+// ✅ NEW: Use standardized error handler
+app.use(errorHandlerMiddleware({ service: 'cds-service' }));
 
 // 404 handler
 app.use('*', notFoundHandler);
@@ -490,6 +499,7 @@ async function initializeService(): Promise<void> {
       logger.info('╔═══════════════════════════════════════════════════╗');
       logger.info('║   CLINICAL DECISION SUPPORT SERVICE STARTED       ║');
       logger.info('╚═══════════════════════════════════════════════════╝');
+      logger.info('✨ Response Wrapper: ENABLED (Request ID tracking active)');
       logger.info(`✅ Service: cds-service`);
       logger.info(`✅ Version: 1.0.0`);
       logger.info(`✅ Port: ${PORT}`);

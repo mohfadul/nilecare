@@ -13,6 +13,12 @@ import { Server as SocketIOServer } from 'socket.io';
 import swaggerUi from 'swagger-ui-express';
 import swaggerJsdoc from 'swagger-jsdoc';
 
+// ✅ NEW: Import response wrapper middleware
+import {
+  requestIdMiddleware,
+  errorHandlerMiddleware,
+} from '@nilecare/response-wrapper';
+
 // Configuration
 import { config, validateConfig } from './config/env';
 import { initializeDatabase, closeDatabase } from './config/database';
@@ -42,6 +48,9 @@ const io = new SocketIOServer(server, {
   },
   transports: ['websocket', 'polling'],
 });
+
+// ✅ NEW: Add request ID middleware FIRST
+app.use(requestIdMiddleware);
 
 // Middleware Configuration
 app.use(helmet({
@@ -171,8 +180,8 @@ app.use('*', (req, res) => {
   });
 });
 
-// Error Handler (must be last)
-app.use(errorHandler);
+// ✅ NEW: Use standardized error handler
+app.use(errorHandlerMiddleware({ service: 'device-integration-service' }));
 
 // Server Initialization Function
 async function startServer(): Promise<void> {
@@ -203,6 +212,7 @@ async function startServer(): Promise<void> {
     server.listen(config.PORT, () => {
       logger.info('='.repeat(60));
       logger.info(`✅ Device Integration Service is running`);
+      logger.info('✨ Response Wrapper: ENABLED (Request ID tracking active)');
       logger.info(`📍 Port: ${config.PORT}`);
       logger.info(`🌍 Environment: ${config.NODE_ENV}`);
       logger.info(`📚 API Documentation: http://localhost:${config.PORT}/api-docs`);

@@ -13,6 +13,10 @@ import { LabOrderFormPage } from './pages/clinical/labs/LabOrderFormPage';
 import { LabResultsPage } from './pages/clinical/labs/LabResultsPage';
 import { MedicationListPage } from './pages/clinical/medications/MedicationListPage';
 import { PrescriptionFormPage } from './pages/clinical/medications/PrescriptionFormPage';
+import { InvoiceListPage } from './pages/billing/InvoiceListPage';
+import { InvoiceDetailsPage } from './pages/billing/InvoiceDetailsPage';
+import { PaymentCheckoutPage } from './pages/payments/PaymentCheckoutPage';
+import { PaymentHistoryPage } from './pages/payments/PaymentHistoryPage';
 import { AuthGuard } from './components/auth/AuthGuard';
 import { AppLayout } from './components/layout/AppLayout';
 
@@ -174,6 +178,50 @@ function App() {
                 <AuthGuard>
                   <AppLayout>
                     <PrescriptionFormPage />
+                  </AppLayout>
+                </AuthGuard>
+              }
+            />
+
+            {/* Billing Routes */}
+            <Route
+              path="/billing/invoices"
+              element={
+                <AuthGuard>
+                  <AppLayout>
+                    <InvoiceListPage />
+                  </AppLayout>
+                </AuthGuard>
+              }
+            />
+            <Route
+              path="/billing/invoices/:id"
+              element={
+                <AuthGuard>
+                  <AppLayout>
+                    <InvoiceDetailsPage />
+                  </AppLayout>
+                </AuthGuard>
+              }
+            />
+
+            {/* Payment Routes */}
+            <Route
+              path="/billing/payments/checkout/:invoiceId"
+              element={
+                <AuthGuard>
+                  <AppLayout>
+                    <PaymentCheckoutPage />
+                  </AppLayout>
+                </AuthGuard>
+              }
+            />
+            <Route
+              path="/billing/payments/history"
+              element={
+                <AuthGuard>
+                  <AppLayout>
+                    <PaymentHistoryPage />
                   </AppLayout>
                 </AuthGuard>
               }

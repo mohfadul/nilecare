@@ -27,6 +27,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { authStore } from '../../store/authStore';
 import { RoleGate } from '../auth/RoleGate';
+import { NotificationCenter } from '../notifications/NotificationCenter';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -55,7 +56,7 @@ export function AppLayout({ children }: AppLayoutProps) {
     { text: 'Appointments', icon: <CalendarToday />, path: '/appointments', roles: ['doctor', 'nurse', 'receptionist', 'admin'] },
     { text: 'Lab Orders', icon: <Science />, path: '/clinical/labs', roles: ['doctor', 'nurse', 'lab_technician', 'lab_tech', 'laboratory', 'admin'] },
     { text: 'Medications', icon: <Medication />, path: '/clinical/medications', roles: ['doctor', 'nurse', 'pharmacist', 'pharmacy', 'admin'] },
-    { text: 'Billing', icon: <Payment />, path: '/billing', roles: ['billing_clerk', 'billing', 'admin'] },
+    { text: 'Billing', icon: <Payment />, path: '/billing/invoices', roles: ['billing_clerk', 'billing', 'admin'] },
     { text: 'Settings', icon: <Settings />, path: '/settings', roles: ['admin', 'super_admin'] },
   ];
 
@@ -104,7 +105,8 @@ export function AppLayout({ children }: AppLayoutProps) {
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
             NileCare Healthcare Platform
           </Typography>
-          <Typography variant="body2">
+          <NotificationCenter />
+          <Typography variant="body2" sx={{ ml: 2 }}>
             {user?.firstName} {user?.lastName} ({user?.role})
           </Typography>
         </Toolbar>

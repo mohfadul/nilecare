@@ -1,9 +1,11 @@
 import { Container, Typography, Paper, Box, Grid, Card, CardContent, Button } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import { authStore } from '../../store/authStore';
 import { CalendarToday, PersonAdd, Phone, CheckCircle } from '@mui/icons-material';
 
 export function ReceptionistDashboard() {
   const user = authStore((state) => state.user);
+  const navigate = useNavigate();
 
   return (
     <Container maxWidth="xl">
@@ -88,8 +90,8 @@ export function ReceptionistDashboard() {
               All appointments for today will appear here
             </Typography>
             <Box sx={{ mt: 2 }}>
-              <Button variant="contained" size="small" sx={{ mr: 1 }}>Check In Patient</Button>
-              <Button variant="outlined" size="small">View Schedule</Button>
+              <Button variant="contained" size="small" sx={{ mr: 1 }} onClick={() => navigate('/appointments')}>Check In Patient</Button>
+              <Button variant="outlined" size="small" onClick={() => navigate('/appointments')}>View Schedule</Button>
             </Box>
           </Paper>
         </Grid>
@@ -118,11 +120,11 @@ export function ReceptionistDashboard() {
               Quick Actions
             </Typography>
             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 2 }}>
-              <Button variant="contained">Register New Patient</Button>
-              <Button variant="contained">Schedule Appointment</Button>
-              <Button variant="outlined">Check In Patient</Button>
-              <Button variant="outlined">Search Patient</Button>
-              <Button variant="outlined">View Waitlist</Button>
+              <Button variant="contained" onClick={() => navigate('/patients/new')}>Register New Patient</Button>
+              <Button variant="contained" onClick={() => navigate('/appointments/new')}>Schedule Appointment</Button>
+              <Button variant="outlined" onClick={() => navigate('/appointments')}>Check In Patient</Button>
+              <Button variant="outlined" onClick={() => navigate('/patients')}>Search Patient</Button>
+              <Button variant="outlined" onClick={() => navigate('/appointments')}>View Waitlist</Button>
             </Box>
           </Paper>
         </Grid>

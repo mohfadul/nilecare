@@ -1,9 +1,11 @@
 import { Container, Typography, Paper, Box, Grid, Card, CardContent, CardActions, Button } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import { authStore } from '../../store/authStore';
 import { People, CalendarToday, Assignment, LocalHospital } from '@mui/icons-material';
 
 export function DoctorDashboard() {
   const user = authStore((state) => state.user);
+  const navigate = useNavigate();
 
   return (
     <Container maxWidth="xl">
@@ -88,7 +90,7 @@ export function DoctorDashboard() {
               Your appointments will appear here once backend is connected
             </Typography>
             <Box sx={{ mt: 2 }}>
-              <Button variant="outlined" size="small">View Full Calendar</Button>
+              <Button variant="outlined" size="small" onClick={() => navigate('/appointments')}>View Full Calendar</Button>
             </Box>
           </Paper>
         </Grid>
@@ -102,7 +104,7 @@ export function DoctorDashboard() {
               Recently seen patients will appear here
             </Typography>
             <Box sx={{ mt: 2 }}>
-              <Button variant="outlined" size="small">View All Patients</Button>
+              <Button variant="outlined" size="small" onClick={() => navigate('/patients')}>View All Patients</Button>
             </Box>
           </Paper>
         </Grid>
@@ -119,8 +121,8 @@ export function DoctorDashboard() {
               Lab results, imaging reports, and clinical notes requiring your review
             </Typography>
             <Box sx={{ mt: 2 }}>
-              <Button variant="contained" size="small" sx={{ mr: 1 }}>Review Lab Results (3)</Button>
-              <Button variant="outlined" size="small">View All Pending</Button>
+              <Button variant="contained" size="small" sx={{ mr: 1 }} onClick={() => navigate('/clinical/labs')}>Review Lab Results (3)</Button>
+              <Button variant="outlined" size="small" onClick={() => navigate('/clinical/medications')}>View Medications</Button>
             </Box>
           </Paper>
         </Grid>

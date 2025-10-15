@@ -1,9 +1,11 @@
 import { Container, Typography, Paper, Box, Grid, Card, CardContent, Button } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import { authStore } from '../../store/authStore';
 import { People, Medication, LocalHospital, Assignment } from '@mui/icons-material';
 
 export function NurseDashboard() {
   const user = authStore((state) => state.user);
+  const navigate = useNavigate();
 
   return (
     <Container maxWidth="xl">
@@ -88,7 +90,7 @@ export function NurseDashboard() {
               Patient list will appear here once backend is connected
             </Typography>
             <Box sx={{ mt: 2 }}>
-              <Button variant="outlined" size="small">View All Patients</Button>
+              <Button variant="outlined" size="small" onClick={() => navigate('/patients')}>View All Patients</Button>
             </Box>
           </Paper>
         </Grid>
@@ -119,8 +121,8 @@ export function NurseDashboard() {
               Upcoming medication rounds and administration tasks
             </Typography>
             <Box sx={{ mt: 2 }}>
-              <Button variant="contained" size="small" sx={{ mr: 1 }}>Current Round (23)</Button>
-              <Button variant="outlined" size="small">Next Round Schedule</Button>
+              <Button variant="contained" size="small" sx={{ mr: 1 }} onClick={() => navigate('/clinical/medications')}>Current Round (23)</Button>
+              <Button variant="outlined" size="small" onClick={() => navigate('/clinical/medications')}>Next Round Schedule</Button>
             </Box>
           </Paper>
         </Grid>

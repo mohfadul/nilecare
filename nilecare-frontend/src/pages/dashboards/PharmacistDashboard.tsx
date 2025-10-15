@@ -1,9 +1,11 @@
 import { Container, Typography, Paper, Box, Grid, Card, CardContent, Button } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import { authStore } from '../../store/authStore';
 import { Medication, Inventory, Warning, CheckCircle } from '@mui/icons-material';
 
 export function PharmacistDashboard() {
   const user = authStore((state) => state.user);
+  const navigate = useNavigate();
 
   return (
     <Container maxWidth="xl">
@@ -88,8 +90,8 @@ export function PharmacistDashboard() {
               Pending prescriptions will appear here
             </Typography>
             <Box sx={{ mt: 2 }}>
-              <Button variant="contained" size="small" sx={{ mr: 1 }}>Fill Prescription</Button>
-              <Button variant="outlined" size="small">View Queue</Button>
+              <Button variant="contained" size="small" sx={{ mr: 1 }} onClick={() => navigate('/clinical/medications')}>Fill Prescription</Button>
+              <Button variant="outlined" size="small" onClick={() => navigate('/clinical/medications')}>View Queue</Button>
             </Box>
           </Paper>
         </Grid>
@@ -156,9 +158,9 @@ export function PharmacistDashboard() {
               Quick Actions
             </Typography>
             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 2 }}>
-              <Button variant="contained">Dispense Medication</Button>
-              <Button variant="outlined">Search Prescription</Button>
-              <Button variant="outlined">Check Interactions</Button>
+              <Button variant="contained" onClick={() => navigate('/clinical/medications')}>Dispense Medication</Button>
+              <Button variant="outlined" onClick={() => navigate('/clinical/medications')}>Search Prescription</Button>
+              <Button variant="outlined" onClick={() => navigate('/clinical/medications')}>Check Interactions</Button>
               <Button variant="outlined">Inventory Count</Button>
               <Button variant="outlined">Generate Report</Button>
             </Box>

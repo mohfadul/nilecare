@@ -1,9 +1,11 @@
 import { Container, Typography, Paper, Box, Grid, Card, CardContent, Button } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import { authStore } from '../../store/authStore';
 import { Science, PendingActions, CheckCircle, Assignment } from '@mui/icons-material';
 
 export function LabTechnicianDashboard() {
   const user = authStore((state) => state.user);
+  const navigate = useNavigate();
 
   return (
     <Container maxWidth="xl">
@@ -88,8 +90,8 @@ export function LabTechnicianDashboard() {
               Ordered tests will appear here
             </Typography>
             <Box sx={{ mt: 2 }}>
-              <Button variant="contained" size="small" sx={{ mr: 1 }}>Start Test</Button>
-              <Button variant="outlined" size="small">View Queue</Button>
+              <Button variant="contained" size="small" sx={{ mr: 1 }} onClick={() => navigate('/clinical/labs')}>Start Test</Button>
+              <Button variant="outlined" size="small" onClick={() => navigate('/clinical/labs')}>View Queue</Button>
             </Box>
           </Paper>
         </Grid>

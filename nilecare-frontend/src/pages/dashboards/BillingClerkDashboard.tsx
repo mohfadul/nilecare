@@ -1,9 +1,11 @@
 import { Container, Typography, Paper, Box, Grid, Card, CardContent, Button } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import { authStore } from '../../store/authStore';
 import { Receipt, AttachMoney, PendingActions, CheckCircle } from '@mui/icons-material';
 
 export function BillingClerkDashboard() {
   const user = authStore((state) => state.user);
+  const navigate = useNavigate();
 
   return (
     <Container maxWidth="xl">
@@ -88,8 +90,8 @@ export function BillingClerkDashboard() {
               Invoices awaiting payment will appear here
             </Typography>
             <Box sx={{ mt: 2 }}>
-              <Button variant="contained" size="small" sx={{ mr: 1 }}>Process Payments</Button>
-              <Button variant="outlined" size="small">Generate Report</Button>
+              <Button variant="contained" size="small" sx={{ mr: 1 }} onClick={() => navigate('/billing/invoices')}>Process Payments</Button>
+              <Button variant="outlined" size="small" onClick={() => navigate('/billing/payments/history')}>View Payment History</Button>
             </Box>
           </Paper>
         </Grid>
@@ -120,9 +122,9 @@ export function BillingClerkDashboard() {
               Quick Actions
             </Typography>
             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 2 }}>
-              <Button variant="contained">Create Invoice</Button>
-              <Button variant="contained">Record Payment</Button>
-              <Button variant="outlined">Search Invoice</Button>
+              <Button variant="contained" onClick={() => navigate('/billing/invoices/new')}>Create Invoice</Button>
+              <Button variant="contained" onClick={() => navigate('/billing/payments/history')}>Record Payment</Button>
+              <Button variant="outlined" onClick={() => navigate('/billing/invoices')}>Search Invoice</Button>
               <Button variant="outlined">Generate Statement</Button>
               <Button variant="outlined">Submit Claim</Button>
               <Button variant="outlined">View Reports</Button>

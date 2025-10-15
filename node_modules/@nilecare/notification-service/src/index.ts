@@ -40,6 +40,12 @@ import { setupCronJobs } from './jobs/scheduledNotifications';
 
 dotenv.config();
 
+// ✅ NEW: Import response wrapper middleware
+import {
+  requestIdMiddleware,
+  errorHandlerMiddleware,
+} from '@nilecare/response-wrapper';
+
 // Environment validation
 try {
   SecretsConfig.validateAll();
@@ -131,6 +137,9 @@ const swaggerOptions = {
 };
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
+
+// ✅ NEW: Add request ID middleware FIRST
+app.use(requestIdMiddleware);
 
 // Middleware
 app.use(helmet({
@@ -281,8 +290,8 @@ pushQueue.on('completed', queueProcessors.onJobComplete);
 pushQueue.on('failed', queueProcessors.onJobFailed);
 pushQueue.on('stalled', queueProcessors.onJobStalled);
 
-// Error handling
-app.use(errorHandler);
+// ✅ NEW: Use standardized error handler
+app.use(errorHandlerMiddleware({ service: 'notification-service' }));
 
 // 404 handler
 app.use('*', (req, res) => {
