@@ -1,9 +1,11 @@
 import { Container, Typography, Paper, Box, Grid, Card, CardContent, Button } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import { authStore } from '../../store/authStore';
 import { People, Business, Assessment, Security } from '@mui/icons-material';
 
 export function AdminDashboard() {
   const user = authStore((state) => state.user);
+  const navigate = useNavigate();
 
   return (
     <Container maxWidth="xl">
@@ -88,8 +90,8 @@ export function AdminDashboard() {
               Manage users, roles, and permissions
             </Typography>
             <Box sx={{ mt: 2 }}>
-              <Button variant="contained" size="small" sx={{ mr: 1 }}>Manage Users</Button>
-              <Button variant="outlined" size="small">Manage Roles</Button>
+              <Button variant="contained" size="small" sx={{ mr: 1 }} onClick={() => navigate('/admin/users')}>Manage Users</Button>
+              <Button variant="outlined" size="small" onClick={() => navigate('/admin/users')}>Manage Roles</Button>
             </Box>
           </Paper>
         </Grid>
@@ -103,8 +105,8 @@ export function AdminDashboard() {
               Configure facilities, departments, and resources
             </Typography>
             <Box sx={{ mt: 2 }}>
-              <Button variant="contained" size="small" sx={{ mr: 1 }}>Manage Facilities</Button>
-              <Button variant="outlined" size="small">View Resources</Button>
+              <Button variant="contained" size="small" sx={{ mr: 1 }} onClick={() => navigate('/admin/facilities')}>Manage Facilities</Button>
+              <Button variant="outlined" size="small" onClick={() => navigate('/admin/facilities')}>View Resources</Button>
             </Box>
           </Paper>
         </Grid>
@@ -121,8 +123,8 @@ export function AdminDashboard() {
               Service health, performance, and logs
             </Typography>
             <Box sx={{ mt: 2 }}>
-              <Button variant="outlined" size="small" sx={{ mr: 1 }}>View Metrics</Button>
-              <Button variant="outlined" size="small">System Logs</Button>
+              <Button variant="outlined" size="small" sx={{ mr: 1 }} onClick={() => navigate('/admin/system')}>View Metrics</Button>
+              <Button variant="outlined" size="small" onClick={() => navigate('/admin/system')}>System Logs</Button>
             </Box>
           </Paper>
         </Grid>
@@ -154,7 +156,7 @@ export function AdminDashboard() {
               Audit logs and recent administrative actions
             </Typography>
             <Box sx={{ mt: 2 }}>
-              <Button variant="outlined" size="small">View Audit Logs</Button>
+              <Button variant="outlined" size="small" onClick={() => navigate('/admin/inventory')}>View Inventory</Button>
             </Box>
           </Paper>
         </Grid>

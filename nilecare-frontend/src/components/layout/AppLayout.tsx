@@ -23,6 +23,10 @@ import {
   Logout,
   Science,
   Medication,
+  AdminPanelSettings,
+  Business,
+  Inventory,
+  HealthAndSafety,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { authStore } from '../../store/authStore';
@@ -57,6 +61,10 @@ export function AppLayout({ children }: AppLayoutProps) {
     { text: 'Lab Orders', icon: <Science />, path: '/clinical/labs', roles: ['doctor', 'nurse', 'lab_technician', 'lab_tech', 'laboratory', 'admin'] },
     { text: 'Medications', icon: <Medication />, path: '/clinical/medications', roles: ['doctor', 'nurse', 'pharmacist', 'pharmacy', 'admin'] },
     { text: 'Billing', icon: <Payment />, path: '/billing/invoices', roles: ['billing_clerk', 'billing', 'admin'] },
+    { text: 'Users', icon: <AdminPanelSettings />, path: '/admin/users', roles: ['admin', 'super_admin'] },
+    { text: 'Facilities', icon: <Business />, path: '/admin/facilities', roles: ['admin', 'super_admin'] },
+    { text: 'Inventory', icon: <Inventory />, path: '/admin/inventory', roles: ['admin', 'super_admin'] },
+    { text: 'System Health', icon: <HealthAndSafety />, path: '/admin/system', roles: ['admin', 'super_admin'] },
     { text: 'Settings', icon: <Settings />, path: '/settings', roles: ['admin', 'super_admin'] },
   ];
 

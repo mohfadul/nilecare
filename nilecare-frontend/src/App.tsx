@@ -17,6 +17,10 @@ import { InvoiceListPage } from './pages/billing/InvoiceListPage';
 import { InvoiceDetailsPage } from './pages/billing/InvoiceDetailsPage';
 import { PaymentCheckoutPage } from './pages/payments/PaymentCheckoutPage';
 import { PaymentHistoryPage } from './pages/payments/PaymentHistoryPage';
+import { UserManagementPage } from './pages/admin/users/UserManagementPage';
+import { FacilityManagementPage } from './pages/admin/facilities/FacilityManagementPage';
+import { InventoryManagementPage } from './pages/admin/inventory/InventoryManagementPage';
+import { SystemHealthPage } from './pages/admin/system/SystemHealthPage';
 import { AuthGuard } from './components/auth/AuthGuard';
 import { AppLayout } from './components/layout/AppLayout';
 
@@ -222,6 +226,48 @@ function App() {
                 <AuthGuard>
                   <AppLayout>
                     <PaymentHistoryPage />
+                  </AppLayout>
+                </AuthGuard>
+              }
+            />
+
+            {/* Admin Routes */}
+            <Route
+              path="/admin/users"
+              element={
+                <AuthGuard>
+                  <AppLayout>
+                    <UserManagementPage />
+                  </AppLayout>
+                </AuthGuard>
+              }
+            />
+            <Route
+              path="/admin/facilities"
+              element={
+                <AuthGuard>
+                  <AppLayout>
+                    <FacilityManagementPage />
+                  </AppLayout>
+                </AuthGuard>
+              }
+            />
+            <Route
+              path="/admin/inventory"
+              element={
+                <AuthGuard>
+                  <AppLayout>
+                    <InventoryManagementPage />
+                  </AppLayout>
+                </AuthGuard>
+              }
+            />
+            <Route
+              path="/admin/system"
+              element={
+                <AuthGuard>
+                  <AppLayout>
+                    <SystemHealthPage />
                   </AppLayout>
                 </AuthGuard>
               }
