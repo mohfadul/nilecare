@@ -29,6 +29,10 @@ import { validateAndLog, commonEnvSchema } from '@nilecare/config-validator';
 import { createErrorHandler, Errors, notFoundHandler } from '@nilecare/error-handler';
 import { createNileCareRegistry, ServiceRegistry } from '@nilecare/service-discovery';
 import { CacheManager } from '@nilecare/cache';
+import {
+  requestIdMiddleware,
+  errorHandlerMiddleware,
+} from '@nilecare/response-wrapper';
 
 // Import authentication middleware
 import { authenticate } from './middleware/auth';
@@ -189,6 +193,9 @@ serviceNames.forEach(serviceName => {
 // ============================================================================
 // MIDDLEWARE
 // ============================================================================
+
+// ✅ NEW: Add request ID middleware FIRST (propagates to downstream services)
+app.use(requestIdMiddleware);
 
 app.use(helmet({
   contentSecurityPolicy: false,
@@ -964,8 +971,8 @@ if (process.env.NOTIFICATION_SERVICE_URL) {
 // 404 handler
 app.use('*', notFoundHandler());
 
-// Global error handler (uses @nilecare/error-handler)
-app.use(createErrorHandler(logger));
+// ✅ NEW: Use standardized error handler from response-wrapper
+app.use(errorHandlerMiddleware({ service: 'main-nilecare' }));
 
 // ============================================================================
 // GRACEFUL SHUTDOWN
@@ -1004,6 +1011,7 @@ server.listen(PORT, () => {
   logger.info('✅  Redis Caching: ENABLED');
   logger.info('✅  Swagger Docs: ENABLED');
   logger.info('✅  WebSocket Support: ENABLED');
+  logger.info('✨  Response Wrapper: ENABLED (Request ID propagation)');
   logger.info('');
   logger.info('🔗  Downstream Services:');
   serviceRegistry.getHealthyServices().forEach(service => {

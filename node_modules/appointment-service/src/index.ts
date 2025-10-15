@@ -11,6 +11,12 @@ import cron from 'node-cron';
 // Load environment variables
 dotenv.config();
 
+// ✅ NEW: Import response wrapper middleware
+import {
+  requestIdMiddleware,
+  errorHandlerMiddleware,
+} from '@nilecare/response-wrapper';
+
 // Import database
 import { testConnection, pool } from './config/database';
 
@@ -45,7 +51,14 @@ const io = new SocketIOServer(server, {
 
 const PORT = process.env.PORT || 7040;
 
-// Middleware
+// ============================================================================
+// MIDDLEWARE
+// ============================================================================
+
+// ✅ NEW: Add request ID middleware FIRST
+app.use(requestIdMiddleware);
+
+// Security middleware
 app.use(helmet());
 app.use(
   cors({
@@ -180,8 +193,12 @@ app.get('/', (req, res) => {
   });
 });
 
-// Error handling
-app.use(errorHandler);
+// ============================================================================
+// ERROR HANDLING (MUST BE LAST)
+// ============================================================================
+
+// ✅ NEW: Use standardized error handler
+app.use(errorHandlerMiddleware({ service: 'appointment-service' }));
 
 // Cron job: Process pending reminders every 5 minutes
 cron.schedule('*/5 * * * *', async () => {
@@ -212,6 +229,7 @@ async function startServer() {
       console.log('✅  APPOINTMENT SERVICE STARTED');
       console.log('═══════════════════════════════════════════════════════════');
       console.log(`🚀  Server:          http://localhost:${PORT}`);
+      console.log('✨  Response Wrapper: ENABLED (Request ID tracking active)');
       console.log(`🏥  Service:         NileCare Appointment Service`);
       console.log(`📡  Socket.IO:       Enabled`);
       console.log(`🗄️   Database:        MySQL (${process.env.DB_NAME})`);

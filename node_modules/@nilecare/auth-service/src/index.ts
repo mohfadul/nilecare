@@ -18,6 +18,12 @@ import { Strategy as LocalStrategy } from 'passport-local';
 import RedisStore from 'connect-redis';
 import { createClient } from 'redis';
 
+// ✅ NEW: Import response wrapper middleware
+import {
+  requestIdMiddleware,
+  errorHandlerMiddleware,
+} from '@nilecare/response-wrapper';
+
 import { logger } from './utils/logger';
 import { errorHandler } from './middleware/errorHandler';
 import { rateLimiter } from './middleware/rateLimiter';
@@ -189,7 +195,14 @@ const swaggerOptions = {
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
 
-// Middleware
+// =============================================================================
+// MIDDLEWARE (Order matters!)
+// =============================================================================
+
+// ✅ NEW: Add request ID middleware FIRST (for request tracking)
+app.use(requestIdMiddleware);
+
+// Security middleware
 app.use(helmet({
   contentSecurityPolicy: false, // Disable for Swagger UI
 }));
@@ -374,8 +387,12 @@ io.on('connection', (socket) => {
   });
 });
 
-// Error handling
-app.use(errorHandler);
+// =============================================================================
+// ERROR HANDLING (MUST BE LAST - after all routes)
+// =============================================================================
+
+// ✅ NEW: Use standardized error handler
+app.use(errorHandlerMiddleware({ service: 'auth-service' }));
 
 // 404 handler
 app.use('*', (req, res) => {
@@ -477,6 +494,7 @@ async function startServer() {
       logger.info(`📚 API Documentation: http://localhost:${PORT}/api-docs`);
       logger.info(`💚 Health check: http://localhost:${PORT}/health`);
       logger.info(`🔐 Features: JWT, RBAC, MFA, OAuth2, OpenID Connect, Session Management`);
+      logger.info(`✨ Response Wrapper: Enabled (Request ID tracking active)`);
       logger.info(`🗄️  Database: MySQL (${process.env.DB_NAME})`);
       logger.info(`📦 Redis: ${redisConnected ? 'Connected' : 'In-memory sessions'}`);
     });
