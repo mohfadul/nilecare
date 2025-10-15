@@ -70,6 +70,13 @@ scrape_configs:
     metrics_path: '/metrics'
     scrape_interval: 10s
 
+  # ===== PAYMENT GATEWAY SERVICE ===== ⭐ NEW
+  - job_name: 'payment-gateway-service'
+    static_configs:
+      - targets: ['host.docker.internal:7030']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+
   # ===== REDIS EXPORTER (optional) =====
   # - job_name: 'redis'
   #   static_configs:

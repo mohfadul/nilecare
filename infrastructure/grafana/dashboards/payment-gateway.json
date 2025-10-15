@@ -1,0 +1,340 @@
+{
+  "dashboard": {
+    "title": "Payment Gateway - Overview",
+    "tags": ["payment", "nilecare", "gateway"],
+    "timezone": "Africa/Khartoum",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Total Payments (Last 24h)",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+        "targets": [
+          {
+            "expr": "sum(increase(payment_total[24h]))",
+            "legendFormat": "Total Payments"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "thresholds" },
+            "thresholds": {
+              "steps": [
+                { "value": 0, "color": "green" },
+                { "value": 5000, "color": "yellow" },
+                { "value": 10000, "color": "red" }
+              ]
+            },
+            "unit": "short"
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "Payment Success Rate",
+        "type": "gauge",
+        "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+        "targets": [
+          {
+            "expr": "sum(payment_by_status{status='confirmed'}) / sum(payment_total) * 100",
+            "legendFormat": "Success Rate %"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "thresholds" },
+            "thresholds": {
+              "steps": [
+                { "value": 0, "color": "red" },
+                { "value": 90, "color": "yellow" },
+                { "value": 95, "color": "green" }
+              ]
+            },
+            "unit": "percent",
+            "min": 0,
+            "max": 100
+          }
+        }
+      },
+      {
+        "id": 3,
+        "title": "Total Revenue (Last 24h)",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+        "targets": [
+          {
+            "expr": "sum(payment_amount_sum)",
+            "legendFormat": "Revenue (SDG)"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "palette-classic" },
+            "unit": "SDG",
+            "decimals": 2
+          }
+        }
+      },
+      {
+        "id": 4,
+        "title": "Active Providers",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+        "targets": [
+          {
+            "expr": "sum(provider_health == 1)",
+            "legendFormat": "Healthy Providers"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "thresholds" },
+            "thresholds": {
+              "steps": [
+                { "value": 0, "color": "red" },
+                { "value": 8, "color": "yellow" },
+                { "value": 10, "color": "green" }
+              ]
+            },
+            "unit": "short"
+          }
+        }
+      },
+      {
+        "id": 5,
+        "title": "Payments by Provider (Last 24h)",
+        "type": "piechart",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+        "targets": [
+          {
+            "expr": "sum by (provider) (increase(payment_by_provider[24h]))",
+            "legendFormat": "{{provider}}"
+          }
+        ],
+        "options": {
+          "legend": {
+            "displayMode": "table",
+            "placement": "right",
+            "values": ["value", "percent"]
+          },
+          "pieType": "donut"
+        }
+      },
+      {
+        "id": 6,
+        "title": "Payment Status Distribution",
+        "type": "piechart",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+        "targets": [
+          {
+            "expr": "sum by (status) (payment_by_status)",
+            "legendFormat": "{{status}}"
+          }
+        ],
+        "options": {
+          "legend": {
+            "displayMode": "table",
+            "placement": "right",
+            "values": ["value", "percent"]
+          },
+          "pieType": "donut"
+        }
+      },
+      {
+        "id": 7,
+        "title": "Payment Amount Distribution",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 24, "x": 0, "y": 12 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, sum(rate(payment_amount_bucket[5m])) by (le))",
+            "legendFormat": "p50"
+          },
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(payment_amount_bucket[5m])) by (le))",
+            "legendFormat": "p95"
+          },
+          {
+            "expr": "histogram_quantile(0.99, sum(rate(payment_amount_bucket[5m])) by (le))",
+            "legendFormat": "p99"
+          }
+        ],
+        "yaxes": [
+          {
+            "label": "Amount (SDG)",
+            "format": "SDG"
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "Payment Processing Time",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, sum(rate(payment_verification_duration_seconds_bucket[5m])) by (le))",
+            "legendFormat": "p50"
+          },
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(payment_verification_duration_seconds_bucket[5m])) by (le))",
+            "legendFormat": "p95"
+          },
+          {
+            "expr": "histogram_quantile(0.99, sum(rate(payment_verification_duration_seconds_bucket[5m])) by (le))",
+            "legendFormat": "p99"
+          }
+        ],
+        "yaxes": [
+          {
+            "label": "Duration (seconds)",
+            "format": "s"
+          }
+        ]
+      },
+      {
+        "id": 9,
+        "title": "Provider Health Status",
+        "type": "table",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+        "targets": [
+          {
+            "expr": "provider_health",
+            "format": "table",
+            "instant": true
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": { "Time": true },
+              "renameByName": {
+                "provider": "Provider",
+                "Value": "Status"
+              }
+            }
+          }
+        ],
+        "fieldConfig": {
+          "overrides": [
+            {
+              "matcher": { "id": "byName", "options": "Status" },
+              "properties": [
+                {
+                  "id": "mappings",
+                  "value": [
+                    {
+                      "type": "value",
+                      "options": {
+                        "0": { "text": "Down", "color": "red" },
+                        "1": { "text": "Healthy", "color": "green" }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": 10,
+        "title": "Refunds (Last 24h)",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 6, "x": 0, "y": 28 },
+        "targets": [
+          {
+            "expr": "sum(increase(refund_total[24h]))",
+            "legendFormat": "Total Refunds"
+          }
+        ]
+      },
+      {
+        "id": 11,
+        "title": "Reconciliations (Last 24h)",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 6, "x": 6, "y": 28 },
+        "targets": [
+          {
+            "expr": "sum(increase(reconciliation_total[24h]))",
+            "legendFormat": "Total Reconciliations"
+          }
+        ]
+      },
+      {
+        "id": 12,
+        "title": "HTTP Request Rate",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 },
+        "targets": [
+          {
+            "expr": "sum(rate(http_requests_total{service='payment-gateway-service'}[5m])) by (method, status_code)",
+            "legendFormat": "{{method}} {{status_code}}"
+          }
+        ]
+      },
+      {
+        "id": 13,
+        "title": "HTTP Response Time (p95)",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 32 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{service='payment-gateway-service'}[5m])) by (le, route))",
+            "legendFormat": "{{route}}"
+          }
+        ],
+        "yaxes": [
+          {
+            "label": "Duration (seconds)",
+            "format": "s"
+          }
+        ]
+      },
+      {
+        "id": 14,
+        "title": "Cache Hit Rate",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 40 },
+        "targets": [
+          {
+            "expr": "sum(rate(cache_hits_total{service='payment-gateway-service'}[5m])) / (sum(rate(cache_hits_total{service='payment-gateway-service'}[5m])) + sum(rate(cache_misses_total{service='payment-gateway-service'}[5m]))) * 100",
+            "legendFormat": "Cache Hit Rate %"
+          }
+        ],
+        "yaxes": [
+          {
+            "label": "Hit Rate (%)",
+            "format": "percent",
+            "min": 0,
+            "max": 100
+          }
+        ]
+      },
+      {
+        "id": 15,
+        "title": "Circuit Breaker Status",
+        "type": "table",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 40 },
+        "targets": [
+          {
+            "expr": "circuit_breaker_state{service='payment-gateway-service'}",
+            "format": "table",
+            "instant": true
+          }
+        ]
+      }
+    ],
+    "refresh": "30s",
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "timepicker": {
+      "refresh_intervals": ["10s", "30s", "1m", "5m"]
+    },
+    "version": 1
+  }
+}
+

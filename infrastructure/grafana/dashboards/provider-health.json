@@ -1,0 +1,340 @@
+{
+  "dashboard": {
+    "title": "Payment Providers - Real-Time Health",
+    "tags": ["payment", "providers", "health", "nilecare"],
+    "timezone": "Africa/Khartoum",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Provider Health Overview",
+        "type": "table",
+        "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
+        "targets": [
+          {
+            "expr": "provider_health",
+            "format": "table",
+            "instant": true
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": { "Time": true, "__name__": true, "job": true, "instance": true },
+              "renameByName": {
+                "provider": "Provider Name",
+                "Value": "Health Status"
+              }
+            }
+          }
+        ],
+        "fieldConfig": {
+          "overrides": [
+            {
+              "matcher": { "id": "byName", "options": "Health Status" },
+              "properties": [
+                {
+                  "id": "mappings",
+                  "value": [
+                    {
+                      "type": "value",
+                      "options": {
+                        "0": {
+                          "text": "⛔ DOWN",
+                          "color": "red"
+                        },
+                        "1": {
+                          "text": "✅ HEALTHY",
+                          "color": "green"
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "id": "custom.displayMode",
+                  "value": "color-background"
+                }
+              ]
+            }
+          ]
+        },
+        "options": {
+          "showHeader": true,
+          "sortBy": [
+            {
+              "displayName": "Health Status",
+              "desc": false
+            }
+          ]
+        }
+      },
+      {
+        "id": 2,
+        "title": "Bank of Khartoum - Transaction Volume",
+        "type": "graph",
+        "gridPos": { "h": 6, "w": 8, "x": 0, "y": 8 },
+        "targets": [
+          {
+            "expr": "sum(rate(payment_by_provider{provider='bank_of_khartoum'}[5m]))",
+            "legendFormat": "Transactions/sec"
+          }
+        ],
+        "yaxes": [
+          {
+            "label": "Transactions",
+            "format": "short"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Zain Cash - Transaction Volume",
+        "type": "graph",
+        "gridPos": { "h": 6, "w": 8, "x": 8, "y": 8 },
+        "targets": [
+          {
+            "expr": "sum(rate(payment_by_provider{provider='zain_cash'}[5m]))",
+            "legendFormat": "Transactions/sec"
+          }
+        ],
+        "yaxes": [
+          {
+            "label": "Transactions",
+            "format": "short"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Cash - Transaction Volume",
+        "type": "graph",
+        "gridPos": { "h": 6, "w": 8, "x": 16, "y": 8 },
+        "targets": [
+          {
+            "expr": "sum(rate(payment_by_provider{provider='cash'}[5m]))",
+            "legendFormat": "Transactions/sec"
+          }
+        ],
+        "yaxes": [
+          {
+            "label": "Transactions",
+            "format": "short"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Sudanese Banks (Combined)",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+        "targets": [
+          {
+            "expr": "sum(rate(payment_by_provider{provider=~'bank_of_khartoum|faisal_islamic|omdurman_national'}[5m])) by (provider)",
+            "legendFormat": "{{provider}}"
+          }
+        ],
+        "yaxes": [
+          {
+            "label": "Transactions/sec",
+            "format": "short"
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Mobile Wallets (Combined)",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
+        "targets": [
+          {
+            "expr": "sum(rate(payment_by_provider{provider=~'zain_cash|mtn_money|sudani_cash|bankak'}[5m])) by (provider)",
+            "legendFormat": "{{provider}}"
+          }
+        ],
+        "yaxes": [
+          {
+            "label": "Transactions/sec",
+            "format": "short"
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Provider Response Time",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 24, "x": 0, "y": 22 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(http_external_request_duration_seconds_bucket{service='payment-gateway-service'}[5m])) by (le, provider))",
+            "legendFormat": "{{provider}} (p95)"
+          }
+        ],
+        "yaxes": [
+          {
+            "label": "Response Time",
+            "format": "s"
+          }
+        ],
+        "alert": {
+          "name": "Provider Response Time High",
+          "conditions": [
+            {
+              "evaluator": {
+                "params": [2],
+                "type": "gt"
+              },
+              "operator": {
+                "type": "and"
+              },
+              "query": {
+                "params": ["A", "5m", "now"]
+              },
+              "reducer": {
+                "params": [],
+                "type": "avg"
+              },
+              "type": "query"
+            }
+          ],
+          "message": "Provider response time is above 2 seconds"
+        }
+      },
+      {
+        "id": 8,
+        "title": "Provider Error Rate",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 30 },
+        "targets": [
+          {
+            "expr": "sum(rate(payment_by_status{status='failed'}[5m])) by (provider)",
+            "legendFormat": "{{provider}}"
+          }
+        ],
+        "yaxes": [
+          {
+            "label": "Errors/sec",
+            "format": "short"
+          }
+        ],
+        "alert": {
+          "name": "Provider Error Rate High",
+          "conditions": [
+            {
+              "evaluator": {
+                "params": [0.1],
+                "type": "gt"
+              }
+            }
+          ],
+          "message": "Provider error rate is above 10%"
+        }
+      },
+      {
+        "id": 9,
+        "title": "Provider Success Rate (Last 1h)",
+        "type": "bargauge",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 30 },
+        "targets": [
+          {
+            "expr": "sum by (provider) (increase(payment_by_status{status='confirmed'}[1h])) / sum by (provider) (increase(payment_by_provider[1h])) * 100",
+            "legendFormat": "{{provider}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "thresholds" },
+            "thresholds": {
+              "steps": [
+                { "value": 0, "color": "red" },
+                { "value": 90, "color": "yellow" },
+                { "value": 95, "color": "green" }
+              ]
+            },
+            "unit": "percent",
+            "min": 0,
+            "max": 100
+          }
+        },
+        "options": {
+          "orientation": "horizontal",
+          "displayMode": "gradient"
+        }
+      },
+      {
+        "id": 10,
+        "title": "Fraud Detection - High Risk Payments",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 6, "x": 0, "y": 38 },
+        "targets": [
+          {
+            "expr": "sum(fraud_detection_score > 60)",
+            "legendFormat": "High Risk"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "thresholds" },
+            "thresholds": {
+              "steps": [
+                { "value": 0, "color": "green" },
+                { "value": 10, "color": "yellow" },
+                { "value": 50, "color": "red" }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 11,
+        "title": "Pending Verifications",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 6, "x": 6, "y": 38 },
+        "targets": [
+          {
+            "expr": "sum(payment_by_status{status='awaiting_verification'})",
+            "legendFormat": "Pending"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "thresholds" },
+            "thresholds": {
+              "steps": [
+                { "value": 0, "color": "green" },
+                { "value": 20, "color": "yellow" },
+                { "value": 50, "color": "red" }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 12,
+        "title": "Cache Performance",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 38 },
+        "targets": [
+          {
+            "expr": "rate(cache_hits_total{service='payment-gateway-service'}[5m])",
+            "legendFormat": "Cache Hits"
+          },
+          {
+            "expr": "rate(cache_misses_total{service='payment-gateway-service'}[5m])",
+            "legendFormat": "Cache Misses"
+          }
+        ]
+      }
+    ],
+    "refresh": "10s",
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "timepicker": {
+      "refresh_intervals": ["10s", "30s", "1m", "5m", "15m"]
+    },
+    "version": 1
+  }
+}
+
