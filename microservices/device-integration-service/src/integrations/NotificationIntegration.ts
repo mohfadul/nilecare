@@ -6,7 +6,6 @@
 import axios, { AxiosInstance } from 'axios';
 import { config } from '../config/env';
 import { DeviceAlert } from '../types';
-import { ExternalServiceError } from '../utils/errors';
 import logger from '../utils/logger';
 
 export class NotificationIntegration {

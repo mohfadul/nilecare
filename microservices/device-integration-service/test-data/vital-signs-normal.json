@@ -1,0 +1,22 @@
+{
+  "deviceId": "DEVICE_ID_HERE",
+  "patientId": "987e6543-e21b-12d3-a456-426614174999",
+  "temperature": 37.2,
+  "heartRate": 75,
+  "respiratoryRate": 16,
+  "bloodPressureSystolic": 120,
+  "bloodPressureDiastolic": 80,
+  "oxygenSaturation": 98,
+  "pulseRate": 75,
+  "quality": {
+    "signalQuality": "good",
+    "leadOff": false,
+    "artifacts": false,
+    "confidence": 95
+  },
+  "metadata": {
+    "testData": true,
+    "testType": "normal_vitals"
+  }
+}
+

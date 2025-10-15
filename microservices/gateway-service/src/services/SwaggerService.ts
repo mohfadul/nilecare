@@ -31,13 +31,22 @@ export class SwaggerService {
    * Initialize service URLs for Swagger docs
    */
   private initializeServiceUrls(): void {
-    const services = {
+    const services: Record<string, string> = {
       'auth-service': process.env.AUTH_SERVICE_URL || 'http://localhost:7020',
       'clinical-service': process.env.CLINICAL_SERVICE_URL || 'http://localhost:7001',
       'business-service': process.env.BUSINESS_SERVICE_URL || 'http://localhost:7010',
       'data-service': process.env.DATA_SERVICE_URL || 'http://localhost:7003',
       'notification-service': process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:7002',
     };
+
+    // Optional services
+    if (process.env.PAYMENT_GATEWAY_SERVICE_URL) {
+      services['payment-gateway-service'] = process.env.PAYMENT_GATEWAY_SERVICE_URL;
+    }
+    
+    if (process.env.DEVICE_INTEGRATION_SERVICE_URL) {
+      services['device-integration-service'] = process.env.DEVICE_INTEGRATION_SERVICE_URL;
+    }
 
     Object.entries(services).forEach(([name, url]) => {
       this.serviceUrls.set(name, url);

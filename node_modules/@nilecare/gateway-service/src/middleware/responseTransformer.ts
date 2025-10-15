@@ -4,7 +4,6 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { logger } from '../utils/logger';
 
 export interface TransformConfig {
   wrapResponse?: boolean;

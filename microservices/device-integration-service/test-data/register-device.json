@@ -1,0 +1,59 @@
+{
+  "deviceName": "Philips IntelliVue MX40 - Test Monitor",
+  "deviceType": "vital_monitor",
+  "manufacturer": "Philips Healthcare",
+  "modelNumber": "MX40",
+  "serialNumber": "TEST-SN-2025-001",
+  "protocol": "mqtt",
+  "firmwareVersion": "1.5.2",
+  "connectionParams": {
+    "mqttBroker": "mqtt://localhost:1883",
+    "mqttTopic": "devices/test-mx40-001/vitals",
+    "mqttUsername": "device_user",
+    "mqttPassword": "device_pass"
+  },
+  "facilityId": "123e4567-e89b-12d3-a456-426614174000",
+  "linkedPatientId": "987e6543-e21b-12d3-a456-426614174999",
+  "location": "Test ICU - Bed 1",
+  "alertThresholds": {
+    "heartRate": {
+      "min": 60,
+      "max": 100,
+      "critical_min": 40,
+      "critical_max": 150
+    },
+    "bloodPressureSystolic": {
+      "min": 90,
+      "max": 140,
+      "critical_min": 70,
+      "critical_max": 180
+    },
+    "bloodPressureDiastolic": {
+      "min": 60,
+      "max": 90,
+      "critical_min": 40,
+      "critical_max": 110
+    },
+    "oxygenSaturation": {
+      "min": 95,
+      "critical_min": 90
+    },
+    "temperature": {
+      "min": 36.0,
+      "max": 37.5,
+      "critical_min": 35.0,
+      "critical_max": 39.0
+    },
+    "respiratoryRate": {
+      "min": 12,
+      "max": 20,
+      "critical_min": 8,
+      "critical_max": 30
+    }
+  },
+  "metadata": {
+    "testDevice": true,
+    "testRun": "initial-integration-test"
+  }
+}
+

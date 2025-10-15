@@ -188,15 +188,15 @@ router.get('/business/health', async (req, res) => {
     }
 });
 // =================================================================
-// AUTH SERVICE ROUTES
+// AUTH SERVICE ROUTES (v1)
 // =================================================================
 /**
- * POST /api/auth/login
+ * POST /api/v1/auth/login
  * User login via auth service
  */
-router.post('/auth/login', async (req, res) => {
+router.post('/v1/auth/login', async (req, res) => {
     try {
-        const data = await forwardRequest(AUTH_SERVICE_URL, '/api/auth/login', 'POST', req);
+        const data = await forwardRequest(AUTH_SERVICE_URL, '/api/v1/auth/login', 'POST', req);
         res.json(data);
     }
     catch (error) {
@@ -204,12 +204,12 @@ router.post('/auth/login', async (req, res) => {
     }
 });
 /**
- * POST /api/auth/register
+ * POST /api/v1/auth/register
  * User registration via auth service
  */
-router.post('/auth/register', async (req, res) => {
+router.post('/v1/auth/register', async (req, res) => {
     try {
-        const data = await forwardRequest(AUTH_SERVICE_URL, '/api/auth/register', 'POST', req);
+        const data = await forwardRequest(AUTH_SERVICE_URL, '/api/v1/auth/register', 'POST', req);
         res.status(201).json(data);
     }
     catch (error) {
@@ -220,9 +220,9 @@ router.post('/auth/register', async (req, res) => {
  * POST /api/auth/refresh
  * Refresh JWT token
  */
-router.post('/auth/refresh', async (req, res) => {
+router.post('/v1/auth/refresh', async (req, res) => {
     try {
-        const data = await forwardRequest(AUTH_SERVICE_URL, '/api/auth/refresh', 'POST', req);
+        const data = await forwardRequest(AUTH_SERVICE_URL, '/api/v1/auth/refresh', 'POST', req);
         res.json(data);
     }
     catch (error) {
@@ -233,9 +233,9 @@ router.post('/auth/refresh', async (req, res) => {
  * POST /api/auth/logout
  * User logout
  */
-router.post('/auth/logout', auth_1.authenticate, async (req, res) => {
+router.post('/v1/auth/logout', auth_1.authenticate, async (req, res) => {
     try {
-        const data = await forwardRequest(AUTH_SERVICE_URL, '/api/auth/logout', 'POST', req);
+        const data = await forwardRequest(AUTH_SERVICE_URL, '/api/v1/auth/logout', 'POST', req);
         res.json(data);
     }
     catch (error) {
@@ -246,9 +246,320 @@ router.post('/auth/logout', auth_1.authenticate, async (req, res) => {
  * GET /api/auth/me
  * Get current user profile
  */
-router.get('/auth/me', auth_1.authenticate, async (req, res) => {
+router.get('/v1/auth/me', auth_1.authenticate, async (req, res) => {
     try {
-        const data = await forwardRequest(AUTH_SERVICE_URL, '/api/auth/me', 'GET', req);
+        const data = await forwardRequest(AUTH_SERVICE_URL, '/api/v1/auth/me', 'GET', req);
+        res.json(data);
+    }
+    catch (error) {
+        handleOrchestrationError(error, res);
+    }
+});
+// =================================================================
+// APPOINTMENT SERVICE ROUTES
+// =================================================================
+/**
+ * GET /api/appointment/appointments
+ * Get all appointments from appointment service
+ */
+router.get('/appointment/appointments', auth_1.authenticate, async (req, res) => {
+    try {
+        // Route to Business Service since appointments are handled there
+        const data = await forwardRequest(BUSINESS_SERVICE_URL, '/api/v1/appointments', 'GET', req);
+        res.json(data);
+    }
+    catch (error) {
+        handleOrchestrationError(error, res);
+    }
+});
+/**
+ * GET /api/appointment/appointments/today
+ * Get today's appointments
+ */
+router.get('/appointment/appointments/today', auth_1.authenticate, async (req, res) => {
+    try {
+        const data = await forwardRequest(BUSINESS_SERVICE_URL, // Using Business Service for appointments
+        '/api/v1/appointments/today', 'GET', req);
+        res.json(data);
+    }
+    catch (error) {
+        handleOrchestrationError(error, res);
+    }
+});
+/**
+ * GET /api/appointment/appointments/stats
+ * Get appointment statistics
+ */
+router.get('/appointment/appointments/stats', auth_1.authenticate, async (req, res) => {
+    try {
+        const data = await forwardRequest(BUSINESS_SERVICE_URL, // Using Business Service for appointments
+        '/api/v1/appointments/stats', 'GET', req);
+        res.json(data);
+    }
+    catch (error) {
+        handleOrchestrationError(error, res);
+    }
+});
+/**
+ * GET /api/appointment/appointments/:id
+ * Get appointment by ID
+ */
+router.get('/appointment/appointments/:id', auth_1.authenticate, async (req, res) => {
+    try {
+        const data = await forwardRequest(BUSINESS_SERVICE_URL, // Using Business Service for appointments
+        `/api/v1/appointments/${req.params.id}`, 'GET', req);
+        res.json(data);
+    }
+    catch (error) {
+        handleOrchestrationError(error, res);
+    }
+});
+/**
+ * POST /api/appointment/appointments
+ * Create new appointment
+ */
+router.post('/appointment/appointments', auth_1.authenticate, async (req, res) => {
+    try {
+        const data = await forwardRequest(BUSINESS_SERVICE_URL, // Using Business Service for appointments
+        '/api/v1/appointments', 'POST', req);
+        res.status(201).json(data);
+    }
+    catch (error) {
+        handleOrchestrationError(error, res);
+    }
+});
+/**
+ * PUT /api/appointment/appointments/:id
+ * Update appointment
+ */
+router.put('/appointment/appointments/:id', auth_1.authenticate, async (req, res) => {
+    try {
+        const data = await forwardRequest(BUSINESS_SERVICE_URL, // Using Business Service for appointments
+        `/api/v1/appointments/${req.params.id}`, 'PUT', req);
+        res.json(data);
+    }
+    catch (error) {
+        handleOrchestrationError(error, res);
+    }
+});
+/**
+ * PATCH /api/appointment/appointments/:id/status
+ * Update appointment status
+ */
+router.patch('/appointment/appointments/:id/status', auth_1.authenticate, async (req, res) => {
+    try {
+        const data = await forwardRequest(BUSINESS_SERVICE_URL, // Using Business Service for appointments
+        `/api/v1/appointments/${req.params.id}/status`, 'PATCH', req);
+        res.json(data);
+    }
+    catch (error) {
+        handleOrchestrationError(error, res);
+    }
+});
+/**
+ * PATCH /api/appointment/appointments/:id/confirm
+ * Confirm appointment
+ */
+router.patch('/appointment/appointments/:id/confirm', auth_1.authenticate, async (req, res) => {
+    try {
+        const data = await forwardRequest(BUSINESS_SERVICE_URL, // Using Business Service for appointments
+        `/api/v1/appointments/${req.params.id}/confirm`, 'PATCH', req);
+        res.json(data);
+    }
+    catch (error) {
+        handleOrchestrationError(error, res);
+    }
+});
+/**
+ * PATCH /api/appointment/appointments/:id/complete
+ * Complete appointment
+ */
+router.patch('/appointment/appointments/:id/complete', auth_1.authenticate, async (req, res) => {
+    try {
+        const data = await forwardRequest(BUSINESS_SERVICE_URL, // Using Business Service for appointments
+        `/api/v1/appointments/${req.params.id}/complete`, 'PATCH', req);
+        res.json(data);
+    }
+    catch (error) {
+        handleOrchestrationError(error, res);
+    }
+});
+/**
+ * DELETE /api/appointment/appointments/:id
+ * Cancel appointment
+ */
+router.delete('/appointment/appointments/:id', auth_1.authenticate, async (req, res) => {
+    try {
+        const data = await forwardRequest(BUSINESS_SERVICE_URL, // Using Business Service for appointments
+        `/api/v1/appointments/${req.params.id}`, 'DELETE', req);
+        res.json(data);
+    }
+    catch (error) {
+        handleOrchestrationError(error, res);
+    }
+});
+/**
+ * GET /api/appointment/schedules/provider/:providerId
+ * Get provider schedule
+ */
+router.get('/appointment/schedules/provider/:providerId', auth_1.authenticate, async (req, res) => {
+    try {
+        const data = await forwardRequest(BUSINESS_SERVICE_URL, // Using Business Service for appointments
+        `/api/v1/schedules/provider/${req.params.providerId}`, 'GET', req);
+        res.json(data);
+    }
+    catch (error) {
+        handleOrchestrationError(error, res);
+    }
+});
+/**
+ * GET /api/appointment/schedules/available-slots
+ * Get available time slots
+ */
+router.get('/appointment/schedules/available-slots', auth_1.authenticate, async (req, res) => {
+    try {
+        const data = await forwardRequest(BUSINESS_SERVICE_URL, // Using Business Service for appointments
+        '/api/v1/schedules/available-slots', 'GET', req);
+        res.json(data);
+    }
+    catch (error) {
+        handleOrchestrationError(error, res);
+    }
+});
+/**
+ * GET /api/appointment/resources
+ * Get all resources
+ */
+router.get('/appointment/resources', auth_1.authenticate, async (req, res) => {
+    try {
+        const data = await forwardRequest(BUSINESS_SERVICE_URL, // Using Business Service for appointments
+        '/api/v1/resources', 'GET', req);
+        res.json(data);
+    }
+    catch (error) {
+        handleOrchestrationError(error, res);
+    }
+});
+/**
+ * GET /api/appointment/resources/:id/availability
+ * Check resource availability
+ */
+router.get('/appointment/resources/:id/availability', auth_1.authenticate, async (req, res) => {
+    try {
+        const data = await forwardRequest(BUSINESS_SERVICE_URL, // Using Business Service for appointments
+        `/api/v1/resources/${req.params.id}/availability`, 'GET', req);
+        res.json(data);
+    }
+    catch (error) {
+        handleOrchestrationError(error, res);
+    }
+});
+/**
+ * GET /api/appointment/waitlist
+ * Get waitlist entries
+ */
+router.get('/appointment/waitlist', auth_1.authenticate, async (req, res) => {
+    try {
+        const data = await forwardRequest(BUSINESS_SERVICE_URL, // Using Business Service for appointments
+        '/api/v1/waitlist', 'GET', req);
+        res.json(data);
+    }
+    catch (error) {
+        handleOrchestrationError(error, res);
+    }
+});
+/**
+ * POST /api/appointment/waitlist
+ * Add patient to waitlist
+ */
+router.post('/appointment/waitlist', auth_1.authenticate, async (req, res) => {
+    try {
+        const data = await forwardRequest(BUSINESS_SERVICE_URL, // Using Business Service for appointments
+        '/api/v1/waitlist', 'POST', req);
+        res.status(201).json(data);
+    }
+    catch (error) {
+        handleOrchestrationError(error, res);
+    }
+});
+/**
+ * PATCH /api/appointment/waitlist/:id/contacted
+ * Mark waitlist entry as contacted
+ */
+router.patch('/appointment/waitlist/:id/contacted', auth_1.authenticate, async (req, res) => {
+    try {
+        const data = await forwardRequest(BUSINESS_SERVICE_URL, // Using Business Service for appointments
+        `/api/v1/waitlist/${req.params.id}/contacted`, 'PATCH', req);
+        res.json(data);
+    }
+    catch (error) {
+        handleOrchestrationError(error, res);
+    }
+});
+/**
+ * DELETE /api/appointment/waitlist/:id
+ * Remove from waitlist
+ */
+router.delete('/appointment/waitlist/:id', auth_1.authenticate, async (req, res) => {
+    try {
+        const data = await forwardRequest(BUSINESS_SERVICE_URL, // Using Business Service for appointments
+        `/api/v1/waitlist/${req.params.id}`, 'DELETE', req);
+        res.json(data);
+    }
+    catch (error) {
+        handleOrchestrationError(error, res);
+    }
+});
+/**
+ * GET /api/appointment/reminders/pending
+ * Get pending reminders
+ */
+router.get('/appointment/reminders/pending', auth_1.authenticate, async (req, res) => {
+    try {
+        const data = await forwardRequest(BUSINESS_SERVICE_URL, // Using Business Service for appointments
+        '/api/v1/reminders/pending', 'GET', req);
+        res.json(data);
+    }
+    catch (error) {
+        handleOrchestrationError(error, res);
+    }
+});
+/**
+ * POST /api/appointment/reminders/process
+ * Process pending reminders
+ */
+router.post('/appointment/reminders/process', auth_1.authenticate, async (req, res) => {
+    try {
+        const data = await forwardRequest(BUSINESS_SERVICE_URL, // Using Business Service for appointments
+        '/api/v1/reminders/process', 'POST', req);
+        res.json(data);
+    }
+    catch (error) {
+        handleOrchestrationError(error, res);
+    }
+});
+/**
+ * POST /api/appointment/reminders/appointment/:appointmentId
+ * Schedule reminders for appointment
+ */
+router.post('/appointment/reminders/appointment/:appointmentId', auth_1.authenticate, async (req, res) => {
+    try {
+        const data = await forwardRequest(BUSINESS_SERVICE_URL, // Using Business Service for appointments
+        `/api/v1/reminders/appointment/${req.params.appointmentId}`, 'POST', req);
+        res.status(201).json(data);
+    }
+    catch (error) {
+        handleOrchestrationError(error, res);
+    }
+});
+/**
+ * GET /api/appointment/health
+ * Health check for appointment service
+ */
+router.get('/appointment/health', async (req, res) => {
+    try {
+        const data = await forwardRequest(BUSINESS_SERVICE_URL, // Using Business Service for appointments
+        '/health', 'GET', req);
         res.json(data);
     }
     catch (error) {
@@ -389,6 +700,7 @@ router.get('/health/all', async (req, res) => {
         { name: 'business', url: BUSINESS_SERVICE_URL },
         { name: 'auth', url: AUTH_SERVICE_URL },
         { name: 'payment', url: PAYMENT_SERVICE_URL },
+        { name: 'appointment', url: APPOINTMENT_SERVICE_URL },
     ];
     const healthChecks = await Promise.allSettled(services.map(async (service) => {
         try {

@@ -2,7 +2,7 @@
  * Type definitions for Express with custom properties
  */
 
-import { JwtPayload } from '../../../shared/middleware/auth';
+import { JwtPayload } from '@shared/middleware/auth';
 
 declare global {
   namespace Express {

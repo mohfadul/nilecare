@@ -1,0 +1,1 @@
+{"version":3,"file":"ProxyService.d.ts","sourceRoot":"","sources":["../../src/services/ProxyService.ts"],"names":[],"mappings":"AAAA;;;;;GAKG;AAEH,OAAO,EAAyB,OAAO,IAAI,YAAY,EAAE,MAAM,uBAAuB,CAAC;AAOvF,qBAAa,YAAY;IACvB;;OAEG;IACH,WAAW,CAAC,WAAW,EAAE,MAAM,EAAE,OAAO,EAAE,YAAY,GAAG,GAAG;IAmF5D;;OAEG;IACH,oBAAoB,CAAC,OAAO,EAAE,YAAY,GAAG,GAAG;CAkCjD"}

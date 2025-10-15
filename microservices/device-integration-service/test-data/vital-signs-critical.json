@@ -1,0 +1,22 @@
+{
+  "deviceId": "DEVICE_ID_HERE",
+  "patientId": "987e6543-e21b-12d3-a456-426614174999",
+  "temperature": 38.9,
+  "heartRate": 35,
+  "respiratoryRate": 7,
+  "bloodPressureSystolic": 65,
+  "bloodPressureDiastolic": 35,
+  "oxygenSaturation": 85,
+  "pulseRate": 35,
+  "quality": {
+    "signalQuality": "poor",
+    "leadOff": false,
+    "artifacts": true,
+    "confidence": 60
+  },
+  "metadata": {
+    "testData": true,
+    "testType": "critical_alert_test"
+  }
+}
+

@@ -10,7 +10,13 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "lint": "eslint src/**/*.ts",
-    "lint:fix": "eslint src/**/*.ts --fix"
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "migrate:info": "flyway -configFiles=flyway.conf info",
+    "migrate:validate": "flyway -configFiles=flyway.conf validate",
+    "migrate:up": "flyway -configFiles=flyway.conf migrate",
+    "migrate:undo": "flyway -configFiles=flyway.conf undo",
+    "migrate:baseline": "flyway -configFiles=flyway.conf baseline",
+    "db:create": "mysql -u root -p -e \"CREATE DATABASE IF NOT EXISTS nilecare_medication CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;\""
   },
   "dependencies": {
     "express": "^4.18.2",

@@ -40,7 +40,7 @@ export class ProxyService {
 
         // Call original onProxyReq if provided
         if (options.onProxyReq) {
-          options.onProxyReq(proxyReq, req as any, res as any);
+          options.onProxyReq(proxyReq, req as any, res as any, options.target as any);
         }
       },
       onProxyRes: (proxyRes: IncomingMessage, req: Request, res: Response) => {
@@ -85,7 +85,7 @@ export class ProxyService {
 
         // Call original onError if provided
         if (options.onError) {
-          options.onError(err, req as any, res as any, options.target);
+          options.onError(err, req as any, res as any, options.target as any);
         }
       },
       logLevel: process.env.LOG_LEVEL === 'debug' ? 'debug' : 'warn',
@@ -122,7 +122,7 @@ export class ProxyService {
         });
 
         if (options.onError) {
-          options.onError(err, req as any, res as any, options.target);
+          options.onError(err, req as any, res as any, options.target as any);
         }
       },
       logLevel: process.env.LOG_LEVEL === 'debug' ? 'debug' : 'warn',

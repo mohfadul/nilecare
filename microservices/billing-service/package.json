@@ -9,7 +9,14 @@
     "build": "tsc",
     "test": "jest",
     "lint": "eslint src/**/*.ts",
-    "lint:fix": "eslint src/**/*.ts --fix"
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "migrate:info": "flyway -configFiles=flyway.conf info",
+    "migrate:validate": "flyway -configFiles=flyway.conf validate",
+    "migrate:up": "flyway -configFiles=flyway.conf migrate",
+    "migrate:undo": "flyway -configFiles=flyway.conf undo",
+    "migrate:baseline": "flyway -configFiles=flyway.conf baseline",
+    "migrate:repair": "flyway -configFiles=flyway.conf repair",
+    "db:create": "mysql -u root -p -e \"CREATE DATABASE IF NOT EXISTS nilecare_billing CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;\""
   },
   "dependencies": {
     "@nilecare/logger": "file:../../packages/@nilecare/logger",
@@ -30,6 +37,7 @@
     "reflect-metadata": "^0.1.13"
   },
   "devDependencies": {
+    "node-flyway": "^3.0.7",
     "@types/express": "^4.17.17",
     "@types/cors": "^2.8.13",
     "@types/compression": "^1.7.2",

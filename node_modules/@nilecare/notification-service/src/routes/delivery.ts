@@ -4,38 +4,37 @@
  */
 
 import { Router } from 'express';
-import { logger } from '../utils/logger';
+import deliveryController from '../controllers/delivery.controller';
 
 const router = Router();
 
 /**
- * GET /api/v1/delivery/:notificationId
- * Get delivery status (to be implemented)
+ * GET /api/v1/delivery/stats
+ * Get delivery statistics
+ * NOTE: Must be before /:notificationId to avoid route conflict
  */
-router.get('/:notificationId', async (req, res) => {
-  logger.info('GET /delivery/:notificationId', { 
-    notificationId: req.params.notificationId,
-    user: req.user?.userId 
-  });
-  res.json({
-    success: true,
-    data: null,
-    message: 'Delivery tracking not yet implemented',
-  });
-});
+router.get(
+  '/stats',
+  deliveryController.getDeliveryStatistics
+);
 
 /**
- * GET /api/v1/delivery/stats
- * Get delivery statistics (to be implemented)
+ * GET /api/v1/delivery/:notificationId
+ * Get delivery status for notification
  */
-router.get('/stats', async (req, res) => {
-  logger.info('GET /delivery/stats', { user: req.user?.userId });
-  res.json({
-    success: true,
-    data: {},
-    message: 'Delivery statistics not yet implemented',
-  });
-});
+router.get(
+  '/:notificationId',
+  deliveryController.getDeliveryStatus
+);
+
+/**
+ * GET /api/v1/delivery/:notificationId/history
+ * Get full delivery history for notification
+ */
+router.get(
+  '/:notificationId/history',
+  deliveryController.getDeliveryHistory
+);
 
 export default router;
 

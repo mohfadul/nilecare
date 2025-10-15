@@ -23,16 +23,20 @@ import notificationRoutes from './routes/notifications';
 import templateRoutes from './routes/templates';
 import deliveryRoutes from './routes/delivery';
 import subscriptionRoutes from './routes/subscriptions';
+import webhookRoutes from './webhooks/deliveryStatus';
 
 // Services
 import { NotificationService } from './services/NotificationService';
 import { WebSocketService } from './services/WebSocketService';
-import { EmailService } from './services/EmailService';
-import { SMSService } from './services/SMSService';
-import { PushService } from './services/PushService';
 
 // Event handlers
 import { setupEventHandlers } from './events/handlers';
+
+// Queue processors
+import * as queueProcessors from './queues/processors';
+
+// Scheduled jobs
+import { setupCronJobs } from './jobs/scheduledNotifications';
 
 dotenv.config();
 
@@ -64,9 +68,6 @@ const PORT = process.env.PORT || 3002;
 // Initialize services
 const notificationService = new NotificationService();
 const webSocketService = new WebSocketService(io);
-const emailService = new EmailService();
-const smsService = new SMSService();
-const pushService = new PushService();
 
 // Initialize queues
 const notificationQueue = new Queue('notification processing', {
@@ -222,6 +223,9 @@ app.use('/api/v1/templates', authMiddleware, templateRoutes);
 app.use('/api/v1/delivery', authMiddleware, deliveryRoutes);
 app.use('/api/v1/subscriptions', authMiddleware, subscriptionRoutes);
 
+// Webhook Routes (no auth - verified by provider signatures)
+app.use('/webhooks', webhookRoutes);
+
 // WebSocket connection handling
 io.use((_socket, next) => {
   // Authenticate socket connections
@@ -252,26 +256,30 @@ io.on('connection', (socket) => {
   });
 });
 
-// Queue processing
-notificationQueue.process('send-notification', async (job) => {
-  const { notification } = job.data;
-  return await notificationService.processNotification(notification);
-});
+// Queue processing with enhanced processors
+const concurrency = parseInt(process.env.QUEUE_CONCURRENCY || '5');
 
-emailQueue.process('send-email', async (job) => {
-  const { emailData } = job.data;
-  return await emailService.sendEmail(emailData);
-});
+notificationQueue.process('send-notification', concurrency, queueProcessors.processNotificationJob);
+emailQueue.process('send-email', concurrency, queueProcessors.processEmailJob);
+smsQueue.process('send-sms', concurrency, queueProcessors.processSMSJob);
+pushQueue.process('send-push', concurrency, queueProcessors.processPushJob);
 
-smsQueue.process('send-sms', async (job) => {
-  const { smsData } = job.data;
-  return await smsService.sendSMS(smsData);
-});
+// Queue event listeners
+notificationQueue.on('completed', queueProcessors.onJobComplete);
+notificationQueue.on('failed', queueProcessors.onJobFailed);
+notificationQueue.on('stalled', queueProcessors.onJobStalled);
 
-pushQueue.process('send-push', async (job) => {
-  const { pushData } = job.data;
-  return await pushService.sendPush(pushData);
-});
+emailQueue.on('completed', queueProcessors.onJobComplete);
+emailQueue.on('failed', queueProcessors.onJobFailed);
+emailQueue.on('stalled', queueProcessors.onJobStalled);
+
+smsQueue.on('completed', queueProcessors.onJobComplete);
+smsQueue.on('failed', queueProcessors.onJobFailed);
+smsQueue.on('stalled', queueProcessors.onJobStalled);
+
+pushQueue.on('completed', queueProcessors.onJobComplete);
+pushQueue.on('failed', queueProcessors.onJobFailed);
+pushQueue.on('stalled', queueProcessors.onJobStalled);
 
 // Error handling
 app.use(errorHandler);
@@ -287,6 +295,11 @@ app.use('*', (req, res) => {
 
 // Setup event handlers
 setupEventHandlers(io, notificationService, webSocketService);
+
+// Setup cron jobs for scheduled notifications
+if (process.env.ENABLE_SCHEDULED_NOTIFICATIONS !== 'false') {
+  setupCronJobs();
+}
 
 // Start server
 server.listen(PORT, async () => {

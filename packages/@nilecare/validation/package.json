@@ -1,0 +1,32 @@
+{
+  "name": "@nilecare/validation",
+  "version": "1.0.0",
+  "description": "Shared validation middleware and schemas for NileCare microservices",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "jest"
+  },
+  "keywords": [
+    "nilecare",
+    "validation",
+    "express-validator",
+    "joi",
+    "schemas"
+  ],
+  "author": "NileCare Team",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "express-validator": "^7.0.1",
+    "joi": "^17.11.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0"
+  }
+}
+

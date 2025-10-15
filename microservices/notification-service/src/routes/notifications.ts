@@ -4,48 +4,78 @@
  */
 
 import { Router } from 'express';
-import { logger } from '../utils/logger';
+import { body } from 'express-validator';
+import { validateRequest } from '../middleware/validation';
+import notificationController from '../controllers/notification.controller';
 
 const router = Router();
 
 /**
  * GET /api/v1/notifications
- * List notifications (to be implemented)
+ * List notifications for authenticated user
  */
-router.get('/', async (req, res) => {
-  logger.info('GET /notifications', { user: req.user?.userId });
-  res.json({
-    success: true,
-    data: [],
-    message: 'Notification listing not yet implemented',
-  });
-});
+router.get(
+  '/',
+  notificationController.listNotifications
+);
 
 /**
  * POST /api/v1/notifications
- * Send notification (to be implemented)
+ * Create and send notification
  */
-router.post('/', async (req, res) => {
-  logger.info('POST /notifications', { user: req.user?.userId, body: req.body });
-  res.json({
-    success: true,
-    data: { id: 'placeholder' },
-    message: 'Notification sending not yet implemented',
-  });
-});
+router.post(
+  '/',
+  [
+    body('user_id').notEmpty().withMessage('User ID is required'),
+    body('channel').isIn(['email', 'sms', 'push', 'websocket']).withMessage('Invalid channel'),
+    body('type').notEmpty().withMessage('Notification type is required'),
+    body('body').notEmpty().withMessage('Body is required'),
+    validateRequest,
+  ],
+  notificationController.createNotification
+);
+
+/**
+ * POST /api/v1/notifications/send
+ * Send notification with template
+ */
+router.post(
+  '/send',
+  [
+    body('user_id').notEmpty().withMessage('User ID is required'),
+    body('channel').isIn(['email', 'sms', 'push', 'websocket']).withMessage('Invalid channel'),
+    body('type').notEmpty().withMessage('Notification type is required'),
+    validateRequest,
+  ],
+  notificationController.sendNotification
+);
+
+/**
+ * GET /api/v1/notifications/stats
+ * Get notification statistics
+ */
+router.get(
+  '/stats',
+  notificationController.getStatistics
+);
 
 /**
  * GET /api/v1/notifications/:id
- * Get notification by ID (to be implemented)
+ * Get notification by ID
  */
-router.get('/:id', async (req, res) => {
-  logger.info('GET /notifications/:id', { id: req.params.id, user: req.user?.userId });
-  res.json({
-    success: true,
-    data: null,
-    message: 'Notification retrieval not yet implemented',
-  });
-});
+router.get(
+  '/:id',
+  notificationController.getNotification
+);
+
+/**
+ * PATCH /api/v1/notifications/:id/read
+ * Mark notification as read
+ */
+router.patch(
+  '/:id/read',
+  notificationController.markAsRead
+);
 
 export default router;
 

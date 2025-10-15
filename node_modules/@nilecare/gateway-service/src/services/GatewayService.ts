@@ -30,7 +30,7 @@ export class GatewayService {
    * Initialize service registry with environment variables
    */
   private initializeServiceRegistry(): void {
-    const services = {
+    const services: Record<string, string> = {
       'auth-service': process.env.AUTH_SERVICE_URL || 'http://localhost:7020',
       'clinical-service': process.env.CLINICAL_SERVICE_URL || 'http://localhost:7001',
       'business-service': process.env.BUSINESS_SERVICE_URL || 'http://localhost:7010',
@@ -38,6 +38,15 @@ export class GatewayService {
       'notification-service': process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:7002',
       'billing-service': process.env.BILLING_SERVICE_URL || 'http://localhost:7011',
     };
+
+    // Optional services (only register if URL is provided)
+    if (process.env.PAYMENT_GATEWAY_SERVICE_URL) {
+      services['payment-gateway-service'] = process.env.PAYMENT_GATEWAY_SERVICE_URL;
+    }
+    
+    if (process.env.DEVICE_INTEGRATION_SERVICE_URL) {
+      services['device-integration-service'] = process.env.DEVICE_INTEGRATION_SERVICE_URL;
+    }
 
     Object.entries(services).forEach(([name, url]) => {
       this.serviceRegistry.set(name, url);

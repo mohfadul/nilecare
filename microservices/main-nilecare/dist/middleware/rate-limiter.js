@@ -16,7 +16,7 @@ console.log('ℹ️  Using in-memory rate limiting (for clustered deployments, c
  */
 exports.rateLimiter = (0, express_rate_limit_1.default)({
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000'), // 1 minute
-    max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100'),
+    max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || (process.env.NODE_ENV === 'development' ? '1000' : '100')),
     message: {
         success: false,
         error: {
@@ -40,8 +40,12 @@ exports.rateLimiter = (0, express_rate_limit_1.default)({
         });
     },
     skip: (req) => {
-        // Skip rate limiting for health checks
-        return req.path === '/health' || req.path.startsWith('/health/');
+        // Skip rate limiting for health checks and API endpoints in development
+        const isHealthCheck = req.path === '/health' || req.path.startsWith('/health/');
+        const isBusinessRoute = req.path.startsWith('/api/business/');
+        const isAppointmentRoute = req.path.startsWith('/api/appointment/');
+        const isDevelopment = process.env.NODE_ENV === 'development';
+        return isHealthCheck || (isDevelopment && (isBusinessRoute || isAppointmentRoute));
     }
 });
 /**

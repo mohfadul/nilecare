@@ -83,27 +83,27 @@ export interface AlertQueryParams {
 }
 
 export class Alert implements IAlert {
-  alertId: string;
-  deviceId: string;
-  patientId: string;
-  alertType: AlertType;
-  severity: AlertSeverity;
+  alertId!: string;
+  deviceId!: string;
+  patientId!: string;
+  alertType!: AlertType;
+  severity!: AlertSeverity;
   parameter?: string;
   value?: number;
   threshold?: number;
-  message: string;
-  acknowledged: boolean;
+  message!: string;
+  acknowledged!: boolean;
   acknowledgedBy?: string;
   acknowledgedAt?: Date;
-  resolved: boolean;
+  resolved!: boolean;
   resolvedBy?: string;
   resolvedAt?: Date;
   resolutionNotes?: string;
-  notificationSent: boolean;
+  notificationSent!: boolean;
   notificationChannels?: string[];
-  timestamp: Date;
-  createdAt: Date;
-  tenantId: string;
+  timestamp!: Date;
+  createdAt!: Date;
+  tenantId!: string;
 
   constructor(data: Partial<IAlert>) {
     Object.assign(this, data);

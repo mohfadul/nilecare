@@ -10,7 +10,18 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "lint": "eslint src/**/*.ts",
-    "lint:fix": "eslint src/**/*.ts --fix"
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "migrate:info": "flyway -configFiles=flyway.conf info",
+    "migrate:validate": "flyway -configFiles=flyway.conf validate",
+    "migrate:up": "flyway -configFiles=flyway.conf migrate",
+    "migrate:undo": "flyway -configFiles=flyway.conf undo",
+    "migrate:baseline": "flyway -configFiles=flyway.conf baseline",
+    "migrate:repair": "flyway -configFiles=flyway.conf repair",
+    "migrate:clean": "flyway -configFiles=flyway.conf clean",
+    "migrate:dev": "flyway -configFiles=flyway-dev.conf migrate",
+    "migrate:prod": "flyway -configFiles=flyway-prod.conf migrate",
+    "db:create": "mysql -u root -p -e \"CREATE DATABASE IF NOT EXISTS nilecare_auth CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;\"",
+    "db:drop": "mysql -u root -p -e \"DROP DATABASE IF EXISTS nilecare_auth;\""
   },
   "dependencies": {
     "@nilecare/logger": "file:../../packages/@nilecare/logger",
@@ -57,6 +68,7 @@
     "winston": "^3.11.0"
   },
   "devDependencies": {
+    "node-flyway": "^3.0.7",
     "@types/bcrypt": "^6.0.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/compression": "^1.7.5",

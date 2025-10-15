@@ -44,10 +44,10 @@ All NileCare microservices now use **centralized authentication** through the Au
 
 ### Documentation
 
-- 📘 **AUTHENTICATION_INTEGRATION_GUIDE.md** (586 lines) - Complete tutorial
-- 📗 **QUICK_SETUP_GUIDE.md** (272 lines) - Quick reference with .env templates
-- 📙 **README_AUTHENTICATION_COMPLETE.md** - Implementation summary
-- 📕 **START_HERE_FIRST.md** - Database setup guide
+- 📘 **[AUTHENTICATION.md](./AUTHENTICATION.md)** - Complete authentication architecture & integration guide
+- 📗 **[QUICKSTART.md](./QUICKSTART.md)** - Get started in 15 minutes
+- 📙 **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Production deployment guide
+- 📕 **[TROUBLESHOOTING.md](./TROUBLESHOOTING.md)** - Common issues and solutions
 
 **Implementation:** 100% Complete | **Services Running:** Auth (7020) + Business (7010) ✅
 
@@ -580,9 +580,24 @@ curl http://localhost:7001/health  # API Gateway
 
 ## 📚 Documentation
 
-- **[System Documentation](./NILECARE_SYSTEM_DOCUMENTATION.md)** - Complete technical documentation
-- **[Comprehensive Report](./NILECARE_COMPREHENSIVE_REPORT.md)** - Detailed analysis and architecture
-- **[API Documentation](http://localhost:7001/api-docs)** - Swagger/OpenAPI docs (when running)
+### Essential Guides
+- **[Quick Start Guide](./QUICKSTART.md)** - Get up and running in 15 minutes
+- **[Authentication Guide](./AUTHENTICATION.md)** - Authentication architecture & integration
+- **[Deployment Guide](./DEPLOYMENT.md)** - Production deployment instructions
+- **[Troubleshooting Guide](./TROUBLESHOOTING.md)** - Common issues and solutions
+- **[Main README](./README.md)** - This file - complete system overview
+
+### API Documentation
+- **[API Documentation](http://localhost:7001/api-docs)** - Swagger/OpenAPI docs (when services are running)
+
+### Service-Specific Documentation
+- **[Auth Service](./microservices/auth-service/README.md)** - Authentication & authorization service
+- **[Business Service](./microservices/business/README.md)** - Core business operations
+- **[Appointment Service](./microservices/appointment-service/README.md)** - Scheduling & appointments
+- **[Payment Gateway](./microservices/payment-gateway-service/README.md)** - Payment processing
+- **[Notification Service](./microservices/notification-service/README.md)** - Notifications & alerts
+
+For complete list of services, see [microservices/](./microservices/) directory.
 
 ### Project Structure
 

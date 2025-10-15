@@ -4,35 +4,70 @@
  */
 
 import { Router } from 'express';
-import { logger } from '../utils/logger';
+import { body } from 'express-validator';
+import { validateRequest } from '../middleware/validation';
+import subscriptionController from '../controllers/subscription.controller';
 
 const router = Router();
 
 /**
  * GET /api/v1/subscriptions
- * Get user preferences (to be implemented)
+ * Get user notification subscriptions
  */
-router.get('/', async (req, res) => {
-  logger.info('GET /subscriptions', { user: req.user?.userId });
-  res.json({
-    success: true,
-    data: [],
-    message: 'Subscription management not yet implemented',
-  });
-});
+router.get(
+  '/',
+  subscriptionController.getUserSubscriptions
+);
 
 /**
- * PUT /api/v1/subscriptions
- * Update user preferences (to be implemented)
+ * GET /api/v1/subscriptions/check
+ * Check if user is subscribed to specific notification
  */
-router.put('/', async (req, res) => {
-  logger.info('PUT /subscriptions', { user: req.user?.userId, body: req.body });
-  res.json({
-    success: true,
-    data: {},
-    message: 'Subscription update not yet implemented',
-  });
-});
+router.get(
+  '/check',
+  subscriptionController.checkSubscription
+);
+
+/**
+ * POST /api/v1/subscriptions
+ * Create or update subscription
+ */
+router.post(
+  '/',
+  [
+    body('channel').isIn(['email', 'sms', 'push', 'websocket']).withMessage('Invalid channel'),
+    body('notification_type').notEmpty().withMessage('Notification type is required'),
+    validateRequest,
+  ],
+  subscriptionController.upsertSubscription
+);
+
+/**
+ * PUT /api/v1/subscriptions/:id
+ * Update subscription by ID
+ */
+router.put(
+  '/:id',
+  subscriptionController.updateSubscription
+);
+
+/**
+ * POST /api/v1/subscriptions/unsubscribe-all
+ * Unsubscribe from all notifications
+ */
+router.post(
+  '/unsubscribe-all',
+  subscriptionController.unsubscribeAll
+);
+
+/**
+ * POST /api/v1/subscriptions/subscribe-all
+ * Subscribe to all notifications
+ */
+router.post(
+  '/subscribe-all',
+  subscriptionController.subscribeAll
+);
 
 export default router;
 

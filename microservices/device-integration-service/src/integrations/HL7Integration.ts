@@ -98,7 +98,7 @@ export class HL7Integration {
    */
   async sendMessage(hl7Message: string): Promise<void> {
     try {
-      const response = await this.client.post('/messages', hl7Message, {
+      await this.client.post('/messages', hl7Message, {
         headers: {
           'Content-Type': 'text/plain',
         },

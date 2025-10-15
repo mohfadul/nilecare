@@ -3,7 +3,6 @@
  * Phase 2: Uses @nilecare/auth-client for centralized authentication
  */
 
-import { Request, Response, NextFunction } from 'express';
 import { AuthServiceClient, createAuthMiddleware } from '@nilecare/auth-client';
 
 // Initialize auth client

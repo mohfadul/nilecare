@@ -17,18 +17,28 @@ import express, { Application } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
-import axios, { AxiosError } from 'axios';
+import axios from 'axios';
 import CircuitBreaker from 'opossum';
+import { createServer } from 'http';
+import swaggerUi from 'swagger-ui-express';
+import morgan from 'morgan';
 
 // ✅ NEW: Shared packages
 import { createLogger, createRequestLogger } from '@nilecare/logger';
 import { validateAndLog, commonEnvSchema } from '@nilecare/config-validator';
-import { createErrorHandler, ApiError, Errors, notFoundHandler } from '@nilecare/error-handler';
+import { createErrorHandler, Errors, notFoundHandler } from '@nilecare/error-handler';
 import { createNileCareRegistry, ServiceRegistry } from '@nilecare/service-discovery';
 import { CacheManager } from '@nilecare/cache';
 
 // Import authentication middleware
 import { authenticate } from './middleware/auth';
+
+// ✅ NEW: Services for Swagger and WebSocket proxying
+import { SwaggerService } from './services/SwaggerService';
+import { ProxyService } from './services/ProxyService';
+
+// ✅ NEW: Response transformer
+import responseTransformer from './middleware/responseTransformer';
 
 // ============================================================================
 // ENVIRONMENT VALIDATION (Fail fast if misconfigured)
@@ -86,7 +96,9 @@ const serviceRegistry: ServiceRegistry = createNileCareRegistry({
     'inventory-service': process.env.INVENTORY_SERVICE_URL || 'http://localhost:5004',
     'facility-service': process.env.FACILITY_SERVICE_URL || 'http://localhost:5001',
     'fhir-service': process.env.FHIR_SERVICE_URL || 'http://localhost:6001',
-    'hl7-service': process.env.HL7_SERVICE_URL || 'http://localhost:6002'
+    'hl7-service': process.env.HL7_SERVICE_URL || 'http://localhost:6002',
+    'device-integration-service': process.env.DEVICE_SERVICE_URL || 'http://localhost:7009',
+    'notification-service': process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:7007'
   },
   healthConfig: {
     path: '/health',
@@ -97,11 +109,16 @@ const serviceRegistry: ServiceRegistry = createNileCareRegistry({
 });
 
 // ============================================================================
-// INITIALIZE EXPRESS APP
+// INITIALIZE EXPRESS APP & HTTP SERVER
 // ============================================================================
 
 const app: Application = express();
+const server = createServer(app); // For WebSocket support
 const PORT = config.PORT || 7000;
+
+// Initialize services
+const swaggerService = new SwaggerService();
+const proxyService = new ProxyService();
 
 // ============================================================================
 // CIRCUIT BREAKERS
@@ -191,7 +208,11 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Request logging
+app.use(morgan('combined', { stream: { write: (message) => logger.info(message.trim()) } }));
 app.use(createRequestLogger(logger));
+
+// Response transformer (removes sensitive fields)
+app.use(responseTransformer);
 
 // ============================================================================
 // PROXY HELPER FUNCTIONS
@@ -274,7 +295,7 @@ async function cachedProxyToService(
 // HEALTH CHECK ENDPOINTS
 // ============================================================================
 
-app.get('/health', (req, res) => {
+app.get('/health', (_req, res) => {
   res.status(200).json({
     status: 'healthy',
     service: 'main-nilecare-orchestrator',
@@ -290,7 +311,7 @@ app.get('/health', (req, res) => {
   });
 });
 
-app.get('/health/ready', async (req, res) => {
+app.get('/health/ready', async (_req, res) => {
   const healthyServices = serviceRegistry.getHealthyServices();
   const unhealthyServices = serviceRegistry.getUnhealthyServices();
 
@@ -306,7 +327,7 @@ app.get('/health/ready', async (req, res) => {
 });
 
 // Service status endpoint
-app.get('/api/v1/services/status', authenticate, (req, res) => {
+app.get('/api/v1/services/status', authenticate, (_req, res) => {
   res.json({
     success: true,
     data: serviceRegistry.getStatus()
@@ -314,7 +335,7 @@ app.get('/api/v1/services/status', authenticate, (req, res) => {
 });
 
 // ✅ Phase 3: Cache statistics endpoint
-app.get('/api/v1/cache/stats', authenticate, async (req, res) => {
+app.get('/api/v1/cache/stats', authenticate, async (_req, res) => {
   try {
     const stats = await cache.getStats();
     res.json({
@@ -330,7 +351,7 @@ app.get('/api/v1/cache/stats', authenticate, async (req, res) => {
 });
 
 // ✅ Phase 3: Clear cache endpoint (admin only)
-app.delete('/api/v1/cache', authenticate, async (req, res) => {
+app.delete('/api/v1/cache', authenticate, async (_req, res) => {
   try {
     await cache.flushAll();
     res.json({
@@ -346,7 +367,7 @@ app.delete('/api/v1/cache', authenticate, async (req, res) => {
 });
 
 // Service info endpoint
-app.get('/', (req, res) => {
+app.get('/', (_req, res) => {
   res.json({
     service: 'NileCare Main Orchestrator',
     version: '2.0.0',
@@ -367,7 +388,9 @@ app.get('/', (req, res) => {
       appointments: '/api/v1/appointments → business-service',
       billing: '/api/v1/billing → business-service',
       medications: '/api/v1/medications → medication-service',
-      labs: '/api/v1/lab-orders → lab-service'
+      labs: '/api/v1/lab-orders → lab-service',
+      devices: '/api/v1/devices → device-integration-service',
+      vitalSigns: '/api/v1/vital-signs → device-integration-service'
     },
     timestamp: new Date().toISOString()
   });
@@ -711,11 +734,12 @@ app.get('/api/v1/patients/:id/complete', authenticate, async (req, res, next) =>
     const patientId = req.params.id;
     
     // Parallel requests to multiple services (with graceful fallback)
-    const [patient, appointments, medications, labOrders] = await Promise.allSettled([
+    const [patient, appointments, medications, labOrders, vitalSigns] = await Promise.allSettled([
       proxyToService('clinical-service', `/api/v1/patients/${patientId}`, 'GET', req),
       proxyToService('business-service', `/api/v1/appointments?patientId=${patientId}`, 'GET', req),
       proxyToService('medication-service', `/api/v1/medications?patientId=${patientId}`, 'GET', req),
-      proxyToService('lab-service', `/api/v1/lab-orders?patientId=${patientId}`, 'GET', req)
+      proxyToService('lab-service', `/api/v1/lab-orders?patientId=${patientId}`, 'GET', req),
+      proxyToService('device-integration-service', `/api/v1/vital-signs/patient/${patientId}?limit=10`, 'GET', req)
     ]);
 
     res.json({
@@ -724,13 +748,15 @@ app.get('/api/v1/patients/:id/complete', authenticate, async (req, res, next) =>
         patient: patient.status === 'fulfilled' ? patient.value?.data : null,
         appointments: appointments.status === 'fulfilled' ? appointments.value?.data : [],
         medications: medications.status === 'fulfilled' ? medications.value?.data : [],
-        labOrders: labOrders.status === 'fulfilled' ? labOrders.value?.data : []
+        labOrders: labOrders.status === 'fulfilled' ? labOrders.value?.data : [],
+        vitalSigns: vitalSigns.status === 'fulfilled' ? vitalSigns.value?.data : []
       },
       errors: {
         patient: patient.status === 'rejected' ? patient.reason.message : null,
         appointments: appointments.status === 'rejected' ? appointments.reason.message : null,
         medications: medications.status === 'rejected' ? medications.reason.message : null,
-        labOrders: labOrders.status === 'rejected' ? labOrders.reason.message : null
+        labOrders: labOrders.status === 'rejected' ? labOrders.reason.message : null,
+        vitalSigns: vitalSigns.status === 'rejected' ? vitalSigns.reason.message : null
       }
     });
   } catch (error) {
@@ -744,11 +770,12 @@ app.get('/api/v1/patients/:id/complete', authenticate, async (req, res, next) =>
 
 app.get('/api/v1/dashboard/stats', authenticate, async (req, res, next) => {
   try {
-    const [patients, appointments, medications, labs] = await Promise.allSettled([
+    const [patients, appointments, medications, labs, devices] = await Promise.allSettled([
       proxyToService('clinical-service', '/api/v1/patients?limit=1', 'GET', req),
       proxyToService('business-service', '/api/v1/appointments?date=' + new Date().toISOString().split('T')[0], 'GET', req),
       proxyToService('medication-service', '/api/v1/medications?status=active', 'GET', req),
-      proxyToService('lab-service', '/api/v1/lab-orders?status=pending', 'GET', req)
+      proxyToService('lab-service', '/api/v1/lab-orders?status=pending', 'GET', req),
+      proxyToService('device-integration-service', '/api/v1/devices?limit=1', 'GET', req)
     ]);
 
     res.json({
@@ -757,13 +784,178 @@ app.get('/api/v1/dashboard/stats', authenticate, async (req, res, next) => {
         totalPatients: patients.status === 'fulfilled' ? patients.value?.data?.total || 0 : 0,
         todayAppointments: appointments.status === 'fulfilled' ? appointments.value?.data?.total || 0 : 0,
         activeMedications: medications.status === 'fulfilled' ? medications.value?.data?.total || 0 : 0,
-        pendingLabs: labs.status === 'fulfilled' ? labs.value?.data?.total || 0 : 0
+        pendingLabs: labs.status === 'fulfilled' ? labs.value?.data?.total || 0 : 0,
+        totalDevices: devices.status === 'fulfilled' ? devices.value?.data?.total || 0 : 0,
+        onlineDevices: devices.status === 'fulfilled' ? devices.value?.data?.onlineCount || 0 : 0
       }
     });
   } catch (error) {
     next(error);
   }
 });
+
+// ============================================================================
+// DEVICE INTEGRATION ROUTES (✅ NEW - Medical Device Management)
+// ============================================================================
+
+// --- DEVICES ---
+app.get('/api/v1/devices', authenticate, async (req, res, next) => {
+  try {
+    const data = await cachedProxyToService('device-integration-service', '/api/v1/devices', 'GET', req, { ttl: 60 }); // 1 min cache
+    res.setHeader('X-Cache-Enabled', 'true');
+    res.json(data);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/api/v1/devices', authenticate, async (req, res, next) => {
+  try {
+    const data = await proxyToService('device-integration-service', '/api/v1/devices', 'POST', req);
+    await cache.invalidatePattern('device-integration-service:/api/v1/devices:*');
+    res.status(201).json(data);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/v1/devices/:deviceId', authenticate, async (req, res, next) => {
+  try {
+    const data = await cachedProxyToService('device-integration-service', `/api/v1/devices/${req.params.deviceId}`, 'GET', req, { ttl: 120 });
+    res.setHeader('X-Cache-Enabled', 'true');
+    res.json(data);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.patch('/api/v1/devices/:deviceId', authenticate, async (req, res, next) => {
+  try {
+    const data = await proxyToService('device-integration-service', `/api/v1/devices/${req.params.deviceId}`, 'PATCH', req);
+    await cache.del(`device-integration-service:/api/v1/devices/${req.params.deviceId}:`);
+    await cache.invalidatePattern('device-integration-service:/api/v1/devices:*');
+    res.json(data);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.patch('/api/v1/devices/:deviceId/status', authenticate, async (req, res, next) => {
+  try {
+    const data = await proxyToService('device-integration-service', `/api/v1/devices/${req.params.deviceId}/status`, 'PATCH', req);
+    await cache.del(`device-integration-service:/api/v1/devices/${req.params.deviceId}:`);
+    res.json(data);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete('/api/v1/devices/:deviceId', authenticate, async (req, res, next) => {
+  try {
+    const data = await proxyToService('device-integration-service', `/api/v1/devices/${req.params.deviceId}`, 'DELETE', req);
+    await cache.invalidatePattern('device-integration-service:/api/v1/devices:*');
+    res.json(data);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// --- VITAL SIGNS ---
+app.post('/api/v1/vital-signs', authenticate, async (req, res, next) => {
+  try {
+    const data = await proxyToService('device-integration-service', '/api/v1/vital-signs', 'POST', req);
+    // No caching for vital signs submissions
+    res.status(201).json(data);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/v1/vital-signs/device/:deviceId', authenticate, async (req, res, next) => {
+  try {
+    const data = await cachedProxyToService('device-integration-service', `/api/v1/vital-signs/device/${req.params.deviceId}`, 'GET', req, { ttl: 30 }); // 30 sec cache
+    res.setHeader('X-Cache-Enabled', 'true');
+    res.json(data);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/v1/vital-signs/patient/:patientId', authenticate, async (req, res, next) => {
+  try {
+    const data = await cachedProxyToService('device-integration-service', `/api/v1/vital-signs/patient/${req.params.patientId}`, 'GET', req, { ttl: 30 });
+    res.setHeader('X-Cache-Enabled', 'true');
+    res.json(data);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/v1/vital-signs/device/:deviceId/latest', authenticate, async (req, res, next) => {
+  try {
+    const data = await proxyToService('device-integration-service', `/api/v1/vital-signs/device/${req.params.deviceId}/latest`, 'GET', req);
+    // No caching for latest data - always fetch fresh
+    res.json(data);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ============================================================================
+// SWAGGER / API DOCUMENTATION
+// ============================================================================
+
+// Swagger JSON endpoint
+app.get('/api-docs/swagger.json', async (_req, res) => {
+  try {
+    const swaggerSpec = await swaggerService.getMergedSwaggerSpec();
+    res.json(swaggerSpec);
+  } catch (error) {
+    logger.error('Error generating Swagger spec:', error);
+    res.status(500).json({ 
+      success: false,
+      error: {
+        code: 'SWAGGER_ERROR',
+        message: 'Failed to generate API documentation'
+      }
+    });
+  }
+});
+
+// Swagger UI
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(null, {
+  swaggerOptions: {
+    url: '/api-docs/swagger.json'
+  }
+}));
+
+// ============================================================================
+// WEBSOCKET PROXIES
+// ============================================================================
+
+// WebSocket proxy for device integration (real-time vital signs)
+if (process.env.DEVICE_SERVICE_URL) {
+  const deviceWsProxy = proxyService.createWebSocketProxy({
+    target: process.env.DEVICE_SERVICE_URL,
+    ws: true,
+    changeOrigin: true
+  });
+  
+  app.use('/ws/devices', deviceWsProxy);
+  logger.info('✅ WebSocket proxy enabled for device service');
+}
+
+// WebSocket proxy for notifications (real-time notifications)
+if (process.env.NOTIFICATION_SERVICE_URL) {
+  const notificationWsProxy = proxyService.createWebSocketProxy({
+    target: process.env.NOTIFICATION_SERVICE_URL,
+    ws: true,
+    changeOrigin: true
+  });
+  
+  app.use('/ws/notifications', notificationWsProxy);
+  logger.info('✅ WebSocket proxy enabled for notification service');
+}
 
 // ============================================================================
 // ERROR HANDLING
@@ -795,19 +987,23 @@ process.on('SIGINT', () => shutdown('SIGINT'));
 // START SERVER
 // ============================================================================
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   logger.info('═══════════════════════════════════════════════════════');
-  logger.info('🚀  MAIN NILECARE ORCHESTRATOR (PHASE 2)');
+  logger.info('🚀  MAIN NILECARE ORCHESTRATOR - UNIFIED GATEWAY');
   logger.info('═══════════════════════════════════════════════════════');
-  logger.info(`📡  Service URL:       http://localhost:${PORT}`);
-  logger.info(`🏥  Health Check:      http://localhost:${PORT}/health`);
-  logger.info(`📊  Services Status:   http://localhost:${PORT}/api/v1/services/status`);
+  logger.info(`📡  Service URL:          http://localhost:${PORT}`);
+  logger.info(`🏥  Health Check:         http://localhost:${PORT}/health`);
+  logger.info(`📚  API Documentation:    http://localhost:${PORT}/api-docs`);
+  logger.info(`📊  Services Status:      http://localhost:${PORT}/api/v1/services/status`);
   logger.info('');
-  logger.info('✅  Architecture: STATELESS ORCHESTRATOR');
+  logger.info('✅  Architecture: UNIFIED ORCHESTRATOR (gateway-service integrated)');
   logger.info('✅  Database: NONE (pure routing layer)');
   logger.info('✅  Circuit Breakers: ENABLED');
   logger.info('✅  Service Discovery: ENABLED');
   logger.info('✅  Health-Based Routing: ENABLED');
+  logger.info('✅  Redis Caching: ENABLED');
+  logger.info('✅  Swagger Docs: ENABLED');
+  logger.info('✅  WebSocket Support: ENABLED');
   logger.info('');
   logger.info('🔗  Downstream Services:');
   serviceRegistry.getHealthyServices().forEach(service => {
@@ -816,4 +1012,10 @@ app.listen(PORT, () => {
   logger.info('═══════════════════════════════════════════════════════');
 });
 
+// Gracefully handle WebSocket upgrades
+server.on('upgrade', (request, _socket, _head) => {
+  logger.debug('WebSocket upgrade request', { url: request.url });
+});
+
 export default app;
+export { server };

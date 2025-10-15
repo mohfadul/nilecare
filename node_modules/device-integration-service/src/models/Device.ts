@@ -137,17 +137,17 @@ export interface DeviceQueryParams {
 }
 
 export class Device implements IDevice {
-  deviceId: string;
-  deviceName: string;
-  deviceType: DeviceType;
+  deviceId!: string;
+  deviceName!: string;
+  deviceType!: DeviceType;
   manufacturer?: string;
   modelNumber?: string;
   serialNumber?: string;
-  protocol: DeviceProtocol;
+  protocol!: DeviceProtocol;
   firmwareVersion?: string;
-  connectionParams: ConnectionParams;
-  status: DeviceStatus;
-  facilityId: string;
+  connectionParams!: ConnectionParams;
+  status!: DeviceStatus;
+  facilityId!: string;
   linkedPatientId?: string;
   location?: string;
   lastSyncTime?: Date;
@@ -161,11 +161,11 @@ export class Device implements IDevice {
   alertThresholds?: AlertThresholds;
   metadata?: Record<string, any>;
   payload?: Record<string, any>;
-  createdBy: string;
+  createdBy!: string;
   updatedBy?: string;
-  createdAt: Date;
-  updatedAt: Date;
-  tenantId: string;
+  createdAt!: Date;
+  updatedAt!: Date;
+  tenantId!: string;
 
   constructor(data: Partial<IDevice>) {
     Object.assign(this, data);

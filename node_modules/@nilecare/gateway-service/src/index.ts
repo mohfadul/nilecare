@@ -1,9 +1,7 @@
 import express from 'express';
-import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import compression from 'compression';
-import { createProxyMiddleware } from 'http-proxy-middleware';
 import dotenv from 'dotenv';
 import { createServer } from 'http';
 import swaggerUi from 'swagger-ui-express';
@@ -12,7 +10,7 @@ import { logger } from './utils/logger';
 import { errorHandler } from './middleware/errorHandler';
 import { rateLimiter } from './middleware/rateLimiter';
 // ✅ MIGRATED: Using shared authentication middleware (centralized auth)
-import { authenticate as authMiddleware } from '../../shared/middleware/auth';
+import { authenticate as authMiddleware } from '@shared/middleware/auth';
 import { requestLogger } from './middleware/requestLogger';
 import { responseTransformer } from './middleware/responseTransformer';
 import { corsMiddleware } from './middleware/cors';
@@ -35,7 +33,7 @@ function validateEnvironment() {
 }
 validateEnvironment();
 
-let appInitialized = false;
+const appInitialized = true; // Service is initialized immediately
 const serviceStartTime = Date.now();
 
 
@@ -45,7 +43,7 @@ const server = createServer(app);
 const PORT = process.env.PORT || 3000;
 
 // Initialize services
-const gatewayService = new GatewayService();
+// const gatewayService = new GatewayService(); // Reserved for future request composition endpoint
 const swaggerService = new SwaggerService();
 const proxyService = new ProxyService();
 
@@ -65,6 +63,9 @@ app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'healthy',
     service: 'gateway-service',
+    deprecated: true,
+    deprecationNotice: 'This service is deprecated. Please use main-nilecare (port 7000) instead. See ⚠️_DEPRECATED.md for migration guide.',
+    removalDate: '2025-12-15',
     timestamp: new Date().toISOString(),
     version: process.env.npm_package_version || '1.0.0',
     features: {
@@ -233,17 +234,44 @@ app.use('/api/v1/insights', authMiddleware, responseTransformer, proxyService.cr
 
 // Notification routes
 app.use('/api/v1/notifications', authMiddleware, responseTransformer, proxyService.createProxy('/api/v1/notifications', {
-  target: process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:3002',
+  target: process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:7002',
   changeOrigin: true,
   pathRewrite: { '^/api/v1/notifications': '/api/v1/notifications' }
 }));
 
 // WebSocket proxy for real-time notifications
 app.use('/ws/notifications', proxyService.createWebSocketProxy({
-  target: process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:3002',
+  target: process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:7002',
   ws: true,
   changeOrigin: true
 }));
+
+// Payment Gateway routes (if available)
+if (process.env.PAYMENT_GATEWAY_SERVICE_URL) {
+  app.use('/api/v1/payments', authMiddleware, responseTransformer, proxyService.createProxy('/api/v1/payments', {
+    target: process.env.PAYMENT_GATEWAY_SERVICE_URL,
+    changeOrigin: true,
+    pathRewrite: { '^/api/v1/payments': '/api/v1/payments' }
+  }));
+  logger.info('Payment Gateway integration enabled');
+}
+
+// Device Integration routes (if available)
+if (process.env.DEVICE_INTEGRATION_SERVICE_URL) {
+  app.use('/api/v1/devices', authMiddleware, responseTransformer, proxyService.createProxy('/api/v1/devices', {
+    target: process.env.DEVICE_INTEGRATION_SERVICE_URL,
+    changeOrigin: true,
+    pathRewrite: { '^/api/v1/devices': '/api/v1/devices' }
+  }));
+  
+  // WebSocket for real-time device data
+  app.use('/ws/devices', proxyService.createWebSocketProxy({
+    target: process.env.DEVICE_INTEGRATION_SERVICE_URL,
+    ws: true,
+    changeOrigin: true
+  }));
+  logger.info('Device Integration service enabled');
+}
 
 // Rate limiting (applied after auth middleware)
 app.use('/api', rateLimiter);

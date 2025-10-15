@@ -54,10 +54,10 @@ export interface VitalSignsQueryParams {
 }
 
 export class VitalSigns implements IVitalSigns {
-  observationId: string;
-  deviceId: string;
-  patientId: string;
-  observationTime: Date;
+  observationId!: string;
+  deviceId!: string;
+  patientId!: string;
+  observationTime!: Date;
   temperature?: number;
   heartRate?: number;
   respiratoryRate?: number;
@@ -71,7 +71,7 @@ export class VitalSigns implements IVitalSigns {
   confidence?: number;
   waveformData?: any;
   metadata?: Record<string, any>;
-  tenantId: string;
+  tenantId!: string;
 
   constructor(data: Partial<IVitalSigns>) {
     Object.assign(this, data);

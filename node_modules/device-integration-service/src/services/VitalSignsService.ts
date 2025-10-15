@@ -93,7 +93,6 @@ export class VitalSignsService {
 
     logger.info('Vital signs processed successfully', {
       observationId: vitalSigns.observationId,
-      alertsCreated: alerts.length,
     });
 
     return vitalSigns;
@@ -189,19 +188,7 @@ export class VitalSignsService {
       const alert = await this.alertRepository.create(alertData);
       
       // Send critical notification
-      await this.notificationIntegration.sendCriticalAlert({
-        alertId: alert.alertId,
-        deviceId: alert.deviceId,
-        patientId: alert.patientId,
-        alertType: alert.alertType,
-        severity: alert.severity,
-        parameter: alert.parameter,
-        value: alert.value,
-        threshold: alert.threshold,
-        message: alert.message,
-        timestamp: alert.timestamp,
-        acknowledged: alert.acknowledged,
-      }).catch((error) => {
+      await this.notificationIntegration.sendCriticalAlert(alert as any).catch((error) => {
         logger.error('Failed to send critical alert notification:', error);
       });
     }
