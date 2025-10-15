@@ -24,6 +24,11 @@
   "license": "PROPRIETARY",
   "dependencies": {
     "@nilecare/auth-client": "file:../../packages/@nilecare/auth-client",
+    "@nilecare/logger": "file:../../packages/@nilecare/logger",
+    "@nilecare/config-validator": "file:../../packages/@nilecare/config-validator",
+    "@nilecare/error-handler": "file:../../packages/@nilecare/error-handler",
+    "@nilecare/service-discovery": "file:../../packages/@nilecare/service-discovery",
+    "@nilecare/cache": "file:../../packages/@nilecare/cache",
     "@types/cookie-parser": "^1.4.9",
     "axios": "^1.6.2",
     "compression": "^1.7.4",
@@ -35,7 +40,7 @@
     "helmet": "^7.1.0",
     "joi": "^17.11.0",
     "jsonwebtoken": "^9.0.2",
-    "mysql2": "^3.6.5",
+    "opossum": "^8.1.1",
     "winston": "^3.11.0"
   },
   "devDependencies": {

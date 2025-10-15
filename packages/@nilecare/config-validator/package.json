@@ -1,0 +1,23 @@
+{
+  "name": "@nilecare/config-validator",
+  "version": "1.0.0",
+  "description": "Environment variable validation for NileCare microservices",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist"
+  },
+  "keywords": ["config", "validation", "environment", "joi", "nilecare"],
+  "author": "NileCare Team",
+  "license": "MIT",
+  "dependencies": {
+    "joi": "^17.11.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.0"
+  }
+}
+

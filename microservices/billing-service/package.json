@@ -12,6 +12,9 @@
     "lint:fix": "eslint src/**/*.ts --fix"
   },
   "dependencies": {
+    "@nilecare/logger": "file:../../packages/@nilecare/logger",
+    "@nilecare/config-validator": "file:../../packages/@nilecare/config-validator",
+    "@nilecare/error-handler": "file:../../packages/@nilecare/error-handler",
     "express": "^4.18.2",
     "cors": "^2.8.5",
     "helmet": "^7.0.0",

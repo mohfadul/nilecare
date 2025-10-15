@@ -1,0 +1,82 @@
+# Prometheus Configuration for NileCare
+# Phase 3: Metrics collection from all microservices
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'nilecare-dev'
+    environment: 'development'
+
+# Alertmanager configuration (optional)
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+          # - 'alertmanager:9093'
+
+# Load rules once and periodically evaluate them
+rule_files:
+  # - 'alerts/*.yml'
+
+# Scrape configurations
+scrape_configs:
+  # ===== ORCHESTRATOR =====
+  - job_name: 'main-nilecare-orchestrator'
+    static_configs:
+      - targets: ['host.docker.internal:7000']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+
+  # ===== AUTH SERVICE =====
+  - job_name: 'auth-service'
+    static_configs:
+      - targets: ['host.docker.internal:7020']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+
+  # ===== BUSINESS SERVICE =====
+  - job_name: 'business-service'
+    static_configs:
+      - targets: ['host.docker.internal:7010']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+
+  # ===== BILLING SERVICE =====
+  - job_name: 'billing-service'
+    static_configs:
+      - targets: ['host.docker.internal:7050']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+
+  # ===== CLINICAL SERVICE =====
+  - job_name: 'clinical-service'
+    static_configs:
+      - targets: ['host.docker.internal:3004']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+
+  # ===== MEDICATION SERVICE =====
+  - job_name: 'medication-service'
+    static_configs:
+      - targets: ['host.docker.internal:4003']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+
+  # ===== LAB SERVICE =====
+  - job_name: 'lab-service'
+    static_configs:
+      - targets: ['host.docker.internal:4005']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+
+  # ===== REDIS EXPORTER (optional) =====
+  # - job_name: 'redis'
+  #   static_configs:
+  #     - targets: ['redis-exporter:9121']
+
+  # ===== PROMETHEUS ITSELF =====
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+

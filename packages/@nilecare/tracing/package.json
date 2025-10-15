@@ -1,0 +1,24 @@
+{
+  "name": "@nilecare/tracing",
+  "version": "1.0.0",
+  "description": "Distributed tracing with Jaeger for NileCare microservices",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist"
+  },
+  "keywords": ["tracing", "jaeger", "opentracing", "distributed-tracing", "nilecare"],
+  "author": "NileCare Team",
+  "license": "MIT",
+  "dependencies": {
+    "jaeger-client": "^3.19.0",
+    "opentracing": "^0.14.7"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.0"
+  }
+}
+

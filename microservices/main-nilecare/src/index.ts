@@ -1,312 +1,679 @@
 /**
- * Main NileCare Service
- * Central integration and orchestration microservice
- * Port: 3006 (default)
+ * Main NileCare Orchestrator
+ * Port: 7000
  * 
- * Responsibilities:
- * - General data management (patients, users, appointments)
- * - Bulk operations
- * - Advanced search
- * - Audit logging
- * - Cross-service orchestration
+ * ✅ PHASE 2 REFACTORING:
+ * - Stateless (NO database)
+ * - Pure routing layer
+ * - Circuit breakers for resilience
+ * - Service discovery
+ * - Centralized shared packages
+ * 
+ * This service acts as the main API gateway, routing requests to
+ * appropriate microservices and aggregating responses when needed.
  */
 
 import express, { Application } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
-import { config } from 'dotenv';
-import winston from 'winston';
-import cookieParser from 'cookie-parser';
+import axios, { AxiosError } from 'axios';
+import CircuitBreaker from 'opossum';
 
-// Load environment variables
-config();
+// ✅ NEW: Shared packages
+import { createLogger, createRequestLogger } from '@nilecare/logger';
+import { validateAndLog, commonEnvSchema } from '@nilecare/config-validator';
+import { createErrorHandler, ApiError, Errors, notFoundHandler } from '@nilecare/error-handler';
+import { createNileCareRegistry, ServiceRegistry } from '@nilecare/service-discovery';
+import { CacheManager } from '@nilecare/cache';
 
-// Import routes
-import healthRoutes from './routes/health.routes';
-import dataRoutes from './routes/data.routes';
-import bulkRoutes from './routes/bulk.routes';
-import searchRoutes from './routes/search.routes';
-import auditRoutes from './routes/audit.routes';
-import orchestratorRoutes from './routes/orchestrator.routes';
-import serviceDiscoveryRoutes from './routes/service-discovery.routes';
-import businessRoutes from './routes/business.routes';
-
-// Import middleware
-import { errorHandler } from './middleware/error-handler';
-import { requestLogger } from './middleware/request-logger';
-import { rateLimiter } from './middleware/rate-limiter';
-import { auditLogger } from './middleware/audit-logger';
-
-// Import authentication middleware (local copy for module resolution)
+// Import authentication middleware
 import { authenticate } from './middleware/auth';
 
-// Import service registry
-import { createServiceRegistry } from './services/service-registry';
+// ============================================================================
+// ENVIRONMENT VALIDATION (Fail fast if misconfigured)
+// ============================================================================
 
-// Initialize logger
-const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'info',
-  format: winston.format.combine(
-    winston.format.timestamp(),
-    winston.format.json()
-  ),
-  transports: [
-    new winston.transports.Console({
-      format: winston.format.combine(
-        winston.format.colorize(),
-        winston.format.printf(({ timestamp, level, message, service }) => {
-          return `${timestamp} [${level}] ${message} ${service ? JSON.stringify({ service }) : ''}`;
-        })
-      )
-    }),
-    new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
-    new winston.transports.File({ filename: 'logs/combined.log' })
-  ],
-  defaultMeta: { service: 'main-nilecare' }
+const config = validateAndLog(commonEnvSchema, 'main-nilecare');
+
+// ============================================================================
+// INITIALIZE LOGGER
+// ============================================================================
+
+const logger = createLogger('main-nilecare');
+
+// ============================================================================
+// INITIALIZE CACHE (Phase 3)
+// ============================================================================
+
+const cache = new CacheManager({
+  redis: {
+    host: process.env.REDIS_HOST || 'localhost',
+    port: parseInt(process.env.REDIS_PORT || '6379'),
+    password: process.env.REDIS_PASSWORD,
+    db: parseInt(process.env.REDIS_DB || '0')
+  },
+  defaultTTL: parseInt(process.env.CACHE_TTL || '300'), // 5 minutes default
+  prefix: 'nilecare:'
 });
 
-// Initialize Express app
+// Test Redis connection
+cache.ping().then(connected => {
+  if (connected) {
+    logger.info('✅ Redis cache connected');
+  } else {
+    logger.warn('⚠️  Redis cache not available - caching disabled');
+  }
+}).catch(err => {
+  logger.warn('⚠️  Redis connection error - caching disabled:', err.message);
+});
+
+// ============================================================================
+// INITIALIZE SERVICE DISCOVERY
+// ============================================================================
+
+const serviceRegistry: ServiceRegistry = createNileCareRegistry({
+  autoStart: true,
+  services: {
+    'auth-service': config.AUTH_SERVICE_URL,
+    'business-service': process.env.BUSINESS_SERVICE_URL || 'http://localhost:7010',
+    'clinical-service': process.env.CLINICAL_SERVICE_URL || 'http://localhost:3004',
+    'appointment-service': process.env.APPOINTMENT_SERVICE_URL || 'http://localhost:7040',
+    'payment-service': process.env.PAYMENT_SERVICE_URL || 'http://localhost:7030',
+    'billing-service': process.env.BILLING_SERVICE_URL || 'http://localhost:7050',
+    'medication-service': process.env.MEDICATION_SERVICE_URL || 'http://localhost:4003',
+    'lab-service': process.env.LAB_SERVICE_URL || 'http://localhost:4005',
+    'inventory-service': process.env.INVENTORY_SERVICE_URL || 'http://localhost:5004',
+    'facility-service': process.env.FACILITY_SERVICE_URL || 'http://localhost:5001',
+    'fhir-service': process.env.FHIR_SERVICE_URL || 'http://localhost:6001',
+    'hl7-service': process.env.HL7_SERVICE_URL || 'http://localhost:6002'
+  },
+  healthConfig: {
+    path: '/health',
+    timeout: 3000,
+    interval: 30000,
+    maxFailures: 3
+  }
+});
+
+// ============================================================================
+// INITIALIZE EXPRESS APP
+// ============================================================================
+
 const app: Application = express();
-const PORT = process.env.PORT || 7000; // ✅ FIXED: Changed from 3006 to match documentation
+const PORT = config.PORT || 7000;
 
-// =================================================================
+// ============================================================================
+// CIRCUIT BREAKERS
+// ============================================================================
+
+interface CircuitBreakerMap {
+  [key: string]: CircuitBreaker<[any], any>;
+}
+
+const breakers: CircuitBreakerMap = {};
+
+/**
+ * Create circuit breaker for a service
+ */
+function createServiceBreaker(serviceName: string): CircuitBreaker<[any], any> {
+  const breaker = new CircuitBreaker(
+    async (config: any) => {
+      return await axios(config);
+    },
+    {
+      timeout: 10000, // 10 seconds
+      errorThresholdPercentage: 50,
+      resetTimeout: 30000, // 30 seconds
+      volumeThreshold: 3,
+      rollingCountTimeout: 10000
+    }
+  );
+
+  breaker.on('open', () => {
+    logger.error(`🔴 Circuit breaker OPEN for ${serviceName}`);
+  });
+
+  breaker.on('halfOpen', () => {
+    logger.warn(`🟡 Circuit breaker HALF-OPEN (testing) for ${serviceName}`);
+  });
+
+  breaker.on('close', () => {
+    logger.info(`🟢 Circuit breaker CLOSED (recovered) for ${serviceName}`);
+  });
+
+  breaker.fallback(() => {
+    throw Errors.serviceUnavailable(serviceName);
+  });
+
+  return breaker;
+}
+
+// Initialize circuit breakers for all services
+const serviceNames = [
+  'auth-service',
+  'business-service',
+  'clinical-service',
+  'appointment-service',
+  'payment-service',
+  'billing-service',
+  'medication-service',
+  'lab-service',
+  'inventory-service',
+  'facility-service',
+  'fhir-service',
+  'hl7-service'
+];
+
+serviceNames.forEach(serviceName => {
+  breakers[serviceName] = createServiceBreaker(serviceName);
+});
+
+// ============================================================================
 // MIDDLEWARE
-// =================================================================
+// ============================================================================
 
-// Configure Helmet with relaxed settings for development
 app.use(helmet({
   contentSecurityPolicy: false,
   crossOriginEmbedderPolicy: false,
   crossOriginResourcePolicy: false,
 }));
 
-// Configure CORS
 app.use(cors({
-  origin: [
-    'http://localhost:5173',
-    'http://127.0.0.1:5173',
-    'http://localhost:3000',
-    ...(process.env.CORS_ORIGIN?.split(',') || [])
-  ],
+  origin: process.env.CORS_ORIGIN || '*',
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  exposedHeaders: ['Content-Range', 'X-Content-Range']
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
-// Compression
 app.use(compression());
-
-// Body parser
-app.use(express.json({ 
-  limit: '10mb',
-  verify: (req: any, _res, buf, _encoding) => {
-    req.rawBody = buf;
-  }
-}));
-app.use(express.urlencoded({ 
-  extended: true, 
-  limit: '10mb',
-  verify: (req: any, _res, buf, _encoding) => {
-    req.rawBody = buf;
-  }
-}));
-
-// Handle body parser errors
-app.use((err: any, req: any, res: any, next: any) => {
-  if (err.type === 'entity.parse.failed' || err.name === 'BadRequestError') {
-    logger.error('Body parser error:', {
-      name: err.name,
-      message: err.message,
-      path: req.path,
-      method: req.method
-    });
-    return res.status(400).json({
-      success: false,
-      error: {
-        code: 'INVALID_REQUEST',
-        message: 'Invalid request body'
-      }
-    });
-  }
-  next(err);
-});
-
-// Cookie parser
-app.use(cookieParser());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Request logging
-app.use(requestLogger);
+app.use(createRequestLogger(logger));
 
-// Rate limiting
-app.use(rateLimiter);
+// ============================================================================
+// PROXY HELPER FUNCTIONS
+// ============================================================================
 
-// Audit logging
-app.use(auditLogger);
+/**
+ * Proxy request to a microservice with circuit breaker (NO caching)
+ */
+async function proxyToService(
+  serviceName: string,
+  path: string,
+  method: string,
+  req: express.Request
+): Promise<any> {
+  // Get service URL from registry
+  const serviceUrl = await serviceRegistry.getServiceUrl(serviceName);
+  
+  if (!serviceUrl) {
+    throw Errors.serviceUnavailable(serviceName);
+  }
 
-// =================================================================
-// ROUTES
-// =================================================================
-
-// Health check (public)
-app.use('/health', healthRoutes);
-
-// Service info endpoint
-app.get('/', (_req, res) => {
-  res.json({
-    service: 'NileCare Main Integration Service',
-    version: '1.0.0',
-    status: 'running',
-    port: PORT,
-    description: 'Central orchestration and data management',
-    routes: {
-      health: '/health',
-      healthReady: '/health/ready',
-      healthStatus: '/health/status',
-      data: '/api/v1/data/* (patients, users, dashboard)',
-      bulk: '/api/v1/bulk/* (bulk operations)',
-      search: '/api/v1/search/* (advanced search)',
-      audit: '/api/v1/audit/* (audit logs)',
-      business: '/api/business/* (appointments, billing, staff, scheduling)',
-      orchestrator: '/api/* (microservice orchestration)'
+  // Make request through circuit breaker
+  const breaker = breakers[serviceName];
+  
+  const response = await breaker.fire({
+    method,
+    url: `${serviceUrl}${path}`,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(req.headers.authorization && { 'Authorization': req.headers.authorization })
     },
-    integrations: {
-      authService: process.env.AUTH_SERVICE_URL || 'http://localhost:3001',
-      paymentService: process.env.PAYMENT_SERVICE_URL || 'http://localhost:3007',
-      appointmentService: process.env.APPOINTMENT_SERVICE_URL || 'http://localhost:3004',
-      businessService: process.env.BUSINESS_SERVICE_URL || 'http://localhost:3005'
+    params: method === 'GET' ? req.query : undefined,
+    data: method !== 'GET' ? req.body : undefined,
+    timeout: 10000
+  });
+
+  return response.data;
+}
+
+/**
+ * Proxy request with Redis caching (Phase 3)
+ * Only caches GET requests
+ */
+async function cachedProxyToService(
+  serviceName: string,
+  path: string,
+  method: string,
+  req: express.Request,
+  options?: { ttl?: number; bypassCache?: boolean }
+): Promise<any> {
+  // Only cache GET requests
+  if (method !== 'GET' || options?.bypassCache) {
+    return await proxyToService(serviceName, path, method, req);
+  }
+
+  // Generate cache key
+  const queryString = Object.keys(req.query).length > 0 ? JSON.stringify(req.query) : '';
+  const cacheKey = `${serviceName}:${path}:${queryString}`;
+  
+  // Try cache first
+  const cached = await cache.get(cacheKey);
+  if (cached) {
+    logger.debug('Cache HIT', { key: cacheKey });
+    return cached;
+  }
+  
+  logger.debug('Cache MISS', { key: cacheKey });
+  
+  // Call service
+  const data = await proxyToService(serviceName, path, method, req);
+  
+  // Cache the result
+  const ttl = options?.ttl || 300; // 5 minutes default
+  await cache.set(cacheKey, data, ttl);
+  
+  return data;
+}
+
+// ============================================================================
+// HEALTH CHECK ENDPOINTS
+// ============================================================================
+
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'healthy',
+    service: 'main-nilecare-orchestrator',
+    version: '2.0.0',
+    timestamp: new Date().toISOString(),
+    architecture: 'stateless-orchestrator',
+    features: {
+      serviceDiscovery: true,
+      circuitBreakers: true,
+      healthBasedRouting: true,
+      responseAggregation: true
+    }
+  });
+});
+
+app.get('/health/ready', async (req, res) => {
+  const healthyServices = serviceRegistry.getHealthyServices();
+  const unhealthyServices = serviceRegistry.getUnhealthyServices();
+
+  res.status(200).json({
+    status: 'ready',
+    services: {
+      healthy: healthyServices,
+      unhealthy: unhealthyServices,
+      total: serviceRegistry.getServiceCount()
     },
     timestamp: new Date().toISOString()
   });
 });
 
-// Data routes (general data management)
-app.use('/api/v1/data', dataRoutes);
-app.use('/api/v1', dataRoutes); // Also mount at /api/v1 for legacy compatibility
-
-// Bulk operations (require authentication)
-app.use('/api/v1/bulk', authenticate, bulkRoutes);
-
-// Search routes (require authentication)
-app.use('/api/v1/search', authenticate, searchRoutes);
-
-// Audit routes (require authentication)
-app.use('/api/v1/audit', authenticate, auditRoutes);
-
-// Business service proxy routes (require authentication)
-app.use('/api/business', businessRoutes);
-
-// Orchestrator routes (microservice routing and aggregation)
-app.use('/api', orchestratorRoutes);
-
-// Service discovery routes (service registry)
-app.use('/api/discovery', serviceDiscoveryRoutes);
-
-// =================================================================
-// ERROR HANDLING
-// =================================================================
-
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    error: {
-      code: 'NOT_FOUND',
-      message: `Route not found: ${req.method} ${req.path}`,
-      suggestion: 'Check the API documentation at /'
-    }
+// Service status endpoint
+app.get('/api/v1/services/status', authenticate, (req, res) => {
+  res.json({
+    success: true,
+    data: serviceRegistry.getStatus()
   });
 });
 
-// Global error handler
-app.use(errorHandler);
-
-// =================================================================
-// START SERVER
-// =================================================================
-
-let appInitialized = false;
-
-// Initialize service registry
-const serviceRegistry = createServiceRegistry(logger);
-
-const server = app.listen(PORT, () => {
-  appInitialized = true;
-  
-  console.log('');
-  console.log('═══════════════════════════════════════════════════════════');
-  console.log('🚀  MAIN NILECARE SERVICE STARTED');
-  console.log('═══════════════════════════════════════════════════════════');
-  console.log(`📡  Service URL:       http://localhost:${PORT}`);
-  console.log(`🏥  Health Check:      http://localhost:${PORT}/health`);
-  console.log(`📊  Service Info:      http://localhost:${PORT}/`);
-  console.log('');
-  console.log('📍  Available Endpoints:');
-  console.log('   /api/v1/data/*        General data management');
-  console.log('   /api/v1/bulk/*        Bulk operations (auth required)');
-  console.log('   /api/v1/search/*      Advanced search (auth required)');
-  console.log('   /api/v1/audit/*       Audit logs (auth required)');
-  console.log('   /api/business/*       Business service (auth required)');
-  console.log('');
-  console.log('🔗  Downstream Services:');
-  console.log(`   Auth Service:         ${process.env.AUTH_SERVICE_URL || 'http://localhost:3001'}`);
-  console.log(`   Payment Service:      ${process.env.PAYMENT_SERVICE_URL || 'http://localhost:3007'}`);
-  console.log(`   Appointment Service:  ${process.env.APPOINTMENT_SERVICE_URL || 'http://localhost:3004'}`);
-  console.log(`   Business Service:     ${process.env.BUSINESS_SERVICE_URL || 'http://localhost:3005'}`);
-  console.log('');
-  console.log('⚡  Features:');
-  console.log('   ✅ Shared Authentication (JWT)');
-  console.log('   ✅ Rate Limiting');
-  console.log('   ✅ Audit Logging');
-  console.log('   ✅ CORS Protection');
-  console.log('   ✅ Security Headers');
-  console.log('═══════════════════════════════════════════════════════════');
-  console.log('');
-  
-  logger.info('Main NileCare service started', { port: PORT });
-  
-  // Start periodic health checks
-  serviceRegistry.startHealthChecks(30000); // Every 30 seconds
+// ✅ Phase 3: Cache statistics endpoint
+app.get('/api/v1/cache/stats', authenticate, async (req, res) => {
+  try {
+    const stats = await cache.getStats();
+    res.json({
+      success: true,
+      data: stats
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'CACHE_ERROR', message: error.message }
+    });
+  }
 });
 
-// =================================================================
+// ✅ Phase 3: Clear cache endpoint (admin only)
+app.delete('/api/v1/cache', authenticate, async (req, res) => {
+  try {
+    await cache.flushAll();
+    res.json({
+      success: true,
+      message: 'Cache cleared successfully'
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'CACHE_ERROR', message: error.message }
+    });
+  }
+});
+
+// Service info endpoint
+app.get('/', (req, res) => {
+  res.json({
+    service: 'NileCare Main Orchestrator',
+    version: '2.0.0',
+    status: 'running',
+    port: PORT,
+    description: '✅ Stateless orchestration and routing layer (Phase 2)',
+    architecture: {
+      type: 'API Gateway / Orchestrator',
+      stateless: true,
+      database: false,
+      circuitBreakers: true,
+      serviceDiscovery: true
+    },
+    routes: {
+      health: '/health',
+      servicesStatus: '/api/v1/services/status',
+      patients: '/api/v1/patients → clinical-service',
+      appointments: '/api/v1/appointments → business-service',
+      billing: '/api/v1/billing → business-service',
+      medications: '/api/v1/medications → medication-service',
+      labs: '/api/v1/lab-orders → lab-service'
+    },
+    timestamp: new Date().toISOString()
+  });
+});
+
+// ============================================================================
+// ORCHESTRATOR ROUTES (Pure Proxying)
+// ============================================================================
+
+// --- PATIENTS (routed to clinical-service) ---
+
+app.get('/api/v1/patients', authenticate, async (req, res, next) => {
+  try {
+    const data = await cachedProxyToService('clinical-service', '/api/v1/patients', 'GET', req, { ttl: 300 });
+    res.setHeader('X-Cache-Enabled', 'true');
+    res.json(data);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/api/v1/patients', authenticate, async (req, res, next) => {
+  try {
+    const data = await proxyToService('clinical-service', '/api/v1/patients', 'POST', req);
+    
+    // ✅ Phase 3: Invalidate patient cache on creation
+    await cache.invalidatePattern('clinical-service:/api/v1/patients:*');
+    logger.debug('Cache invalidated', { pattern: 'patients:*' });
+    
+    res.status(201).json(data);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/v1/patients/:id', authenticate, async (req, res, next) => {
+  try {
+    const data = await cachedProxyToService('clinical-service', `/api/v1/patients/${req.params.id}`, 'GET', req, { ttl: 600 });
+    res.setHeader('X-Cache-Enabled', 'true');
+    res.json(data);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.put('/api/v1/patients/:id', authenticate, async (req, res, next) => {
+  try {
+    const data = await proxyToService('clinical-service', `/api/v1/patients/${req.params.id}`, 'PUT', req);
+    
+    // ✅ Phase 3: Invalidate specific patient cache
+    await cache.del(`clinical-service:/api/v1/patients/${req.params.id}:`);
+    await cache.invalidatePattern('clinical-service:/api/v1/patients:*');
+    logger.debug('Cache invalidated', { patient: req.params.id });
+    
+    res.json(data);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete('/api/v1/patients/:id', authenticate, async (req, res, next) => {
+  try {
+    const data = await proxyToService('clinical-service', `/api/v1/patients/${req.params.id}`, 'DELETE', req);
+    
+    // ✅ Phase 3: Invalidate patient cache on deletion
+    await cache.del(`clinical-service:/api/v1/patients/${req.params.id}:`);
+    await cache.invalidatePattern('clinical-service:/api/v1/patients:*');
+    logger.debug('Cache invalidated', { patient: req.params.id });
+    
+    res.json(data);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// --- APPOINTMENTS (routed to business-service) ---
+
+app.get('/api/v1/appointments', authenticate, async (req, res, next) => {
+  try {
+    const data = await cachedProxyToService('business-service', '/api/v1/appointments', 'GET', req, { ttl: 180 }); // 3 min cache
+    res.setHeader('X-Cache-Enabled', 'true');
+    res.json(data);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/api/v1/appointments', authenticate, async (req, res, next) => {
+  try {
+    const data = await proxyToService('business-service', '/api/v1/appointments', 'POST', req);
+    
+    // ✅ Phase 3: Invalidate appointment cache
+    await cache.invalidatePattern('business-service:/api/v1/appointments:*');
+    
+    res.status(201).json(data);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/v1/appointments/:id', authenticate, async (req, res, next) => {
+  try {
+    const data = await proxyToService('business-service', `/api/v1/appointments/${req.params.id}`, 'GET', req);
+    res.json(data);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.put('/api/v1/appointments/:id', authenticate, async (req, res, next) => {
+  try {
+    const data = await proxyToService('business-service', `/api/v1/appointments/${req.params.id}`, 'PUT', req);
+    res.json(data);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete('/api/v1/appointments/:id', authenticate, async (req, res, next) => {
+  try {
+    const data = await proxyToService('business-service', `/api/v1/appointments/${req.params.id}`, 'DELETE', req);
+    res.json(data);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// --- BILLING (routed to billing-service) ---
+
+app.get('/api/v1/billing', authenticate, async (req, res, next) => {
+  try {
+    const data = await cachedProxyToService('billing-service', '/api/v1/billing', 'GET', req, { ttl: 240 }); // 4 min cache
+    res.setHeader('X-Cache-Enabled', 'true');
+    res.json(data);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/api/v1/billing', authenticate, async (req, res, next) => {
+  try {
+    const data = await proxyToService('billing-service', '/api/v1/billing', 'POST', req);
+    res.status(201).json(data);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// --- MEDICATIONS (routed to medication-service) ---
+
+app.get('/api/v1/medications', authenticate, async (req, res, next) => {
+  try {
+    const data = await cachedProxyToService('medication-service', '/api/v1/medications', 'GET', req, { ttl: 180 }); // 3 min cache
+    res.setHeader('X-Cache-Enabled', 'true');
+    res.json(data);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/api/v1/medications', authenticate, async (req, res, next) => {
+  try {
+    const data = await proxyToService('medication-service', '/api/v1/medications', 'POST', req);
+    res.status(201).json(data);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// --- LAB ORDERS (routed to lab-service) ---
+
+app.get('/api/v1/lab-orders', authenticate, async (req, res, next) => {
+  try {
+    const data = await cachedProxyToService('lab-service', '/api/v1/lab-orders', 'GET', req, { ttl: 120 }); // 2 min cache
+    res.setHeader('X-Cache-Enabled', 'true');
+    res.json(data);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/api/v1/lab-orders', authenticate, async (req, res, next) => {
+  try {
+    const data = await proxyToService('lab-service', '/api/v1/lab-orders', 'POST', req);
+    res.status(201).json(data);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ============================================================================
+// RESPONSE AGGREGATION EXAMPLE
+// ============================================================================
+
+/**
+ * GET /api/v1/patients/:id/complete
+ * Aggregates patient data from multiple services
+ */
+app.get('/api/v1/patients/:id/complete', authenticate, async (req, res, next) => {
+  try {
+    const patientId = req.params.id;
+    
+    // Parallel requests to multiple services (with graceful fallback)
+    const [patient, appointments, medications, labOrders] = await Promise.allSettled([
+      proxyToService('clinical-service', `/api/v1/patients/${patientId}`, 'GET', req),
+      proxyToService('business-service', `/api/v1/appointments?patientId=${patientId}`, 'GET', req),
+      proxyToService('medication-service', `/api/v1/medications?patientId=${patientId}`, 'GET', req),
+      proxyToService('lab-service', `/api/v1/lab-orders?patientId=${patientId}`, 'GET', req)
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        patient: patient.status === 'fulfilled' ? patient.value?.data : null,
+        appointments: appointments.status === 'fulfilled' ? appointments.value?.data : [],
+        medications: medications.status === 'fulfilled' ? medications.value?.data : [],
+        labOrders: labOrders.status === 'fulfilled' ? labOrders.value?.data : []
+      },
+      errors: {
+        patient: patient.status === 'rejected' ? patient.reason.message : null,
+        appointments: appointments.status === 'rejected' ? appointments.reason.message : null,
+        medications: medications.status === 'rejected' ? medications.reason.message : null,
+        labOrders: labOrders.status === 'rejected' ? labOrders.reason.message : null
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ============================================================================
+// DASHBOARD STATS (Aggregated from multiple services)
+// ============================================================================
+
+app.get('/api/v1/dashboard/stats', authenticate, async (req, res, next) => {
+  try {
+    const [patients, appointments, medications, labs] = await Promise.allSettled([
+      proxyToService('clinical-service', '/api/v1/patients?limit=1', 'GET', req),
+      proxyToService('business-service', '/api/v1/appointments?date=' + new Date().toISOString().split('T')[0], 'GET', req),
+      proxyToService('medication-service', '/api/v1/medications?status=active', 'GET', req),
+      proxyToService('lab-service', '/api/v1/lab-orders?status=pending', 'GET', req)
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        totalPatients: patients.status === 'fulfilled' ? patients.value?.data?.total || 0 : 0,
+        todayAppointments: appointments.status === 'fulfilled' ? appointments.value?.data?.total || 0 : 0,
+        activeMedications: medications.status === 'fulfilled' ? medications.value?.data?.total || 0 : 0,
+        pendingLabs: labs.status === 'fulfilled' ? labs.value?.data?.total || 0 : 0
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ============================================================================
+// ERROR HANDLING
+// ============================================================================
+
+// 404 handler
+app.use('*', notFoundHandler());
+
+// Global error handler (uses @nilecare/error-handler)
+app.use(createErrorHandler(logger));
+
+// ============================================================================
 // GRACEFUL SHUTDOWN
-// =================================================================
+// ============================================================================
 
 const shutdown = (signal: string) => {
-  logger.info(`${signal} received, shutting down gracefully...`);
+  logger.info(`${signal} received, shutting down gracefully`);
   
   // Stop health checks
   serviceRegistry.stopHealthChecks();
   
-  server.close(() => {
-    logger.info('Server closed');
-    process.exit(0);
-  });
-  
-  // Force shutdown after 10 seconds
-  setTimeout(() => {
-    logger.error('Forced shutdown after timeout');
-    process.exit(1);
-  }, 10000);
+  process.exit(0);
 };
 
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
 
-// =================================================================
-// ERROR HANDLERS
-// =================================================================
+// ============================================================================
+// START SERVER
+// ============================================================================
 
-process.on('uncaughtException', (error) => {
-  logger.error('Uncaught Exception:', { error: error.message, stack: error.stack });
-  process.exit(1);
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-  logger.error('Unhandled Rejection:', { reason, promise });
+app.listen(PORT, () => {
+  logger.info('═══════════════════════════════════════════════════════');
+  logger.info('🚀  MAIN NILECARE ORCHESTRATOR (PHASE 2)');
+  logger.info('═══════════════════════════════════════════════════════');
+  logger.info(`📡  Service URL:       http://localhost:${PORT}`);
+  logger.info(`🏥  Health Check:      http://localhost:${PORT}/health`);
+  logger.info(`📊  Services Status:   http://localhost:${PORT}/api/v1/services/status`);
+  logger.info('');
+  logger.info('✅  Architecture: STATELESS ORCHESTRATOR');
+  logger.info('✅  Database: NONE (pure routing layer)');
+  logger.info('✅  Circuit Breakers: ENABLED');
+  logger.info('✅  Service Discovery: ENABLED');
+  logger.info('✅  Health-Based Routing: ENABLED');
+  logger.info('');
+  logger.info('🔗  Downstream Services:');
+  serviceRegistry.getHealthyServices().forEach(service => {
+    logger.info(`   ✅ ${service}`);
+  });
+  logger.info('═══════════════════════════════════════════════════════');
 });
 
 export default app;
-

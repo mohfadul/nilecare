@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AuthServiceClient = void 0;
+exports.createAuthMiddleware = exports.AuthServiceClient = void 0;
 const axios_1 = __importDefault(require("axios"));
 const uuid_1 = require("uuid");
 class AuthServiceClient {
@@ -147,5 +147,9 @@ class AuthServiceClient {
     }
 }
 exports.AuthServiceClient = AuthServiceClient;
+// Export middleware from separate file
+var middleware_1 = require("./middleware");
+Object.defineProperty(exports, "createAuthMiddleware", { enumerable: true, get: function () { return middleware_1.createAuthMiddleware; } });
+// Export as default
 exports.default = AuthServiceClient;
 //# sourceMappingURL=index.js.map

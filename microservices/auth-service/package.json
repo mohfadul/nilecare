@@ -13,6 +13,9 @@
     "lint:fix": "eslint src/**/*.ts --fix"
   },
   "dependencies": {
+    "@nilecare/logger": "file:../../packages/@nilecare/logger",
+    "@nilecare/config-validator": "file:../../packages/@nilecare/config-validator",
+    "@nilecare/error-handler": "file:../../packages/@nilecare/error-handler",
     "argon2": "^0.31.2",
     "axios": "^1.6.0",
     "bcrypt": "^6.0.0",

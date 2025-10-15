@@ -1,0 +1,23 @@
+{
+  "name": "@nilecare/service-discovery",
+  "version": "1.0.0",
+  "description": "Service discovery and health-based routing for NileCare microservices",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist"
+  },
+  "keywords": ["service-discovery", "microservices", "health-check", "nilecare"],
+  "author": "NileCare Team",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.0"
+  }
+}
+

@@ -1,0 +1,200 @@
+# NileCare GraphQL Schema
+# Phase 3: GraphQL Gateway for flexible data fetching
+
+# ===== PATIENT TYPE =====
+
+type Patient {
+  id: ID!
+  firstName: String!
+  lastName: String!
+  nationalId: String
+  email: String
+  phone: String
+  dateOfBirth: String
+  gender: String
+  bloodType: String
+  allergies: [String!]
+  medicalHistory: [String!]
+  
+  # Nested data from other services
+  appointments: [Appointment!]!
+  medications: [Medication!]!
+  labOrders: [LabOrder!]!
+}
+
+# ===== APPOINTMENT TYPE =====
+
+type Appointment {
+  id: ID!
+  patientId: ID!
+  providerId: ID!
+  date: String!
+  time: String!
+  status: AppointmentStatus!
+  reason: String
+  duration: Int
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+# ===== MEDICATION TYPE =====
+
+type Medication {
+  id: ID!
+  patientId: ID!
+  name: String!
+  dosage: String!
+  frequency: String!
+  status: MedicationStatus!
+  prescribedDate: String
+}
+
+enum MedicationStatus {
+  ACTIVE
+  COMPLETED
+  DISCONTINUED
+}
+
+# ===== LAB ORDER TYPE =====
+
+type LabOrder {
+  id: ID!
+  patientId: ID!
+  testName: String!
+  testType: String!
+  priority: LabPriority!
+  status: LabStatus!
+  orderedDate: String
+  results: String
+}
+
+enum LabPriority {
+  STAT
+  URGENT
+  ROUTINE
+}
+
+enum LabStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+# ===== BILLING TYPE =====
+
+type Invoice {
+  id: ID!
+  invoiceNumber: String!
+  patientId: ID!
+  totalAmount: Float!
+  paidAmount: Float!
+  status: InvoiceStatus!
+  dueDate: String
+}
+
+enum InvoiceStatus {
+  PENDING
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+# ===== QUERIES =====
+
+type Query {
+  # Patient queries
+  patient(id: ID!): Patient
+  patients(limit: Int = 20, offset: Int = 0): PatientsResponse!
+  
+  # Appointment queries
+  appointment(id: ID!): Appointment
+  appointments(patientId: ID, date: String, limit: Int = 20): [Appointment!]!
+  
+  # Medication queries
+  medications(patientId: ID, status: MedicationStatus): [Medication!]!
+  
+  # Lab order queries
+  labOrders(patientId: ID, status: LabStatus): [LabOrder!]!
+  
+  # Billing queries
+  invoice(id: ID!): Invoice
+  invoices(patientId: ID, status: InvoiceStatus): [Invoice!]!
+}
+
+# ===== MUTATIONS =====
+
+type Mutation {
+  # Patient mutations
+  createPatient(input: CreatePatientInput!): Patient!
+  updatePatient(id: ID!, input: UpdatePatientInput!): Patient!
+  deletePatient(id: ID!): DeleteResponse!
+  
+  # Appointment mutations
+  createAppointment(input: CreateAppointmentInput!): Appointment!
+  updateAppointment(id: ID!, input: UpdateAppointmentInput!): Appointment!
+  cancelAppointment(id: ID!): Appointment!
+}
+
+# ===== INPUT TYPES =====
+
+input CreatePatientInput {
+  firstName: String!
+  lastName: String!
+  nationalId: String!
+  email: String
+  phone: String
+  dateOfBirth: String!
+  gender: String!
+  bloodType: String
+  allergies: [String!]
+  medicalHistory: [String!]
+}
+
+input UpdatePatientInput {
+  firstName: String
+  lastName: String
+  email: String
+  phone: String
+  bloodType: String
+  allergies: [String!]
+  medicalHistory: [String!]
+}
+
+input CreateAppointmentInput {
+  patientId: ID!
+  providerId: ID!
+  date: String!
+  time: String!
+  reason: String
+  duration: Int
+}
+
+input UpdateAppointmentInput {
+  date: String
+  time: String
+  status: AppointmentStatus
+  reason: String
+  duration: Int
+}
+
+# ===== RESPONSE TYPES =====
+
+type PatientsResponse {
+  patients: [Patient!]!
+  total: Int!
+  page: Int!
+  limit: Int!
+}
+
+type DeleteResponse {
+  success: Boolean!
+  message: String!
+}
+

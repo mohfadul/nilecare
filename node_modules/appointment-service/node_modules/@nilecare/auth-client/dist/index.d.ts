@@ -49,5 +49,6 @@ export declare class AuthServiceClient {
      */
     healthCheck(): Promise<boolean>;
 }
+export { createAuthMiddleware } from './middleware';
 export default AuthServiceClient;
 //# sourceMappingURL=index.d.ts.map

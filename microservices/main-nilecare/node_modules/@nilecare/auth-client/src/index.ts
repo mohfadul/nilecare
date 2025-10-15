@@ -200,5 +200,8 @@ export class AuthServiceClient {
   }
 }
 
-export default AuthServiceClient;
+// Export middleware from separate file
+export { createAuthMiddleware } from './middleware';
 
+// Export as default
+export default AuthServiceClient;
