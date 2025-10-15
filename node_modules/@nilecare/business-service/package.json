@@ -17,6 +17,7 @@
     "@nilecare/logger": "file:../../packages/@nilecare/logger",
     "@nilecare/config-validator": "file:../../packages/@nilecare/config-validator",
     "@nilecare/error-handler": "file:../../packages/@nilecare/error-handler",
+    "@nilecare/response-wrapper": "file:../../packages/@nilecare/response-wrapper",
     "bcryptjs": "^2.4.3",
     "compression": "^1.7.4",
     "cors": "^2.8.5",

@@ -29,6 +29,12 @@ import cron from 'node-cron';
 // Load environment variables FIRST
 config();
 
+// ✅ NEW: Import response wrapper middleware
+import {
+  requestIdMiddleware,
+  errorHandlerMiddleware,
+} from '@nilecare/response-wrapper';
+
 // Import configuration
 import DatabaseConfig from './config/database.config';
 import SecretsConfig from './config/secrets.config';
@@ -79,6 +85,13 @@ DatabaseConfig.verifySchema().catch(error => {
 
 const app: Application = express();
 const PORT = parseInt(process.env.PORT || '5003');
+
+// ============================================================================
+// MIDDLEWARE (Order matters!)
+// ============================================================================
+
+// ✅ NEW: Add request ID middleware FIRST
+app.use(requestIdMiddleware);
 
 // Security middleware
 app.use(helmet({
@@ -166,8 +179,12 @@ app.use('*', (_req, res) => {
   });
 });
 
-// Global error handler
-app.use(errorHandler);
+// ============================================================================
+// ERROR HANDLING (MUST BE LAST)
+// ============================================================================
+
+// ✅ NEW: Use standardized error handler
+app.use(errorHandlerMiddleware({ service: 'billing-service' }));
 
 // ============================================================================
 // SCHEDULED TASKS
@@ -207,6 +224,7 @@ app.listen(PORT, () => {
   console.log('✅  BILLING SERVICE STARTED SUCCESSFULLY');
   console.log('═══════════════════════════════════════════════════════════');
   console.log(`📡  Service URL:       http://localhost:${PORT}`);
+  console.log('✨  Response Wrapper:  ENABLED (Request ID tracking active)');
   console.log(`🏥  Health Check:      http://localhost:${PORT}/health`);
   console.log(`📊  Readiness:         http://localhost:${PORT}/health/ready`);
   console.log('');

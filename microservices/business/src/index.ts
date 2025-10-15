@@ -35,6 +35,12 @@ import {
 
 dotenv.config();
 
+// ✅ NEW: Import response wrapper middleware
+import {
+  requestIdMiddleware,
+  errorHandlerMiddleware,
+} from '@nilecare/response-wrapper';
+
 // ============================================================================
 // ENVIRONMENT VALIDATION
 // ============================================================================
@@ -141,7 +147,14 @@ const swaggerOptions = {
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
 
-// Middleware
+// ============================================================================
+// MIDDLEWARE (Order matters!)
+// ============================================================================
+
+// ✅ NEW: Add request ID middleware FIRST
+app.use(requestIdMiddleware);
+
+// Security middleware
 app.use(helmet());
 app.use(cors({
   origin: process.env.CLIENT_URL || "http://localhost:3000",
@@ -307,8 +320,12 @@ io.on('connection', (socket) => {
   });
 });
 
-// Error handling
-app.use(errorHandler);
+// ============================================================================
+// ERROR HANDLING (MUST BE LAST)
+// ============================================================================
+
+// ✅ NEW: Use standardized error handler
+app.use(errorHandlerMiddleware({ service: 'business-service' }));
 
 // 404 handler
 app.use('*', (req, res) => {
@@ -396,6 +413,7 @@ process.on('SIGINT', () => shutdown('SIGINT'));
       logger.info('║   BUSINESS SERVICE STARTED                        ║');
       logger.info('╚═══════════════════════════════════════════════════╝');
       logger.info(`✅ Service: business-service`);
+      logger.info('✨ Response Wrapper: ENABLED (Request ID tracking active)');
       logger.info(`✅ Port: ${PORT}`);
       logger.info(`✅ Health: http://localhost:${PORT}/health`);
       logger.info(`✅ Ready: http://localhost:${PORT}/health/ready`);

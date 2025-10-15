@@ -17,6 +17,12 @@ import winston from 'winston';
 // Load environment variables
 config();
 
+// ✅ NEW: Import response wrapper middleware
+import {
+  requestIdMiddleware,
+  errorHandlerMiddleware,
+} from '@nilecare/response-wrapper';
+
 // Import routes
 import paymentRoutes from './routes/payment.routes';
 import reconciliationRoutes from './routes/reconciliation.routes';
@@ -46,8 +52,14 @@ const logger = winston.createLogger({
 const app: Application = express();
 const PORT = process.env.PORT || 7030; // Payment Gateway Service port as per NileCare documentation
 
-// Middleware
-// Configure Helmet with relaxed settings for development
+// ============================================================================
+// MIDDLEWARE (Order matters!)
+// ============================================================================
+
+// ✅ NEW: Add request ID middleware FIRST
+app.use(requestIdMiddleware);
+
+// Security middleware - Configure Helmet with relaxed settings for development
 app.use(helmet({
   contentSecurityPolicy: false, // Disable CSP for development
   crossOriginEmbedderPolicy: false,
@@ -209,8 +221,12 @@ app.use('/api/v1/payments', paymentRoutes);
 app.use('/api/v1/reconciliation', reconciliationRoutes);
 app.use('/api/v1/refunds', refundRoutes);
 
-// Error handling
-app.use(errorHandler);
+// ============================================================================
+// ERROR HANDLING (MUST BE LAST)
+// ============================================================================
+
+// ✅ NEW: Use standardized error handler
+app.use(errorHandlerMiddleware({ service: 'payment-gateway' }));
 
 // Start server
 app.listen(PORT, () => {
@@ -219,6 +235,7 @@ app.listen(PORT, () => {
   console.log('💳  PAYMENT GATEWAY SERVICE STARTED');
   console.log('═══════════════════════════════════════════════════════════');
   console.log(`📡  Service URL:       http://localhost:${PORT}`);
+  console.log('✨  Response Wrapper:  ENABLED (Request ID tracking active)');
   console.log(`🏥  Health Check:      http://localhost:${PORT}/health`);
   console.log('');
   console.log('📍  Payment Operations:');

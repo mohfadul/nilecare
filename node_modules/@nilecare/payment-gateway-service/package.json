@@ -38,6 +38,7 @@
     "@nilecare/logger": "file:../../packages/@nilecare/logger",
     "@nilecare/config-validator": "file:../../packages/@nilecare/config-validator",
     "@nilecare/error-handler": "file:../../packages/@nilecare/error-handler",
+    "@nilecare/response-wrapper": "file:../../packages/@nilecare/response-wrapper",
     "@nilecare/tracing": "file:../../packages/@nilecare/tracing",
     "@nilecare/metrics": "file:../../packages/@nilecare/metrics",
     "@nilecare/cache": "file:../../packages/@nilecare/cache",
