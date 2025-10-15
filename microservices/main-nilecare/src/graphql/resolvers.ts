@@ -123,6 +123,90 @@ export const resolvers = {
         context.req
       );
       return data.data || [];
+    },
+    
+    // ===== PAYMENT QUERIES =====
+    
+    payment: async (_: any, { id }: { id: string }, context: GraphQLContext) => {
+      const data = await context.cachedProxyToService(
+        'payment-service',
+        `/api/v1/payments/${id}`,
+        'GET',
+        context.req,
+        { ttl: 180, keyPrefix: 'payments' }
+      );
+      return data.data;
+    },
+    
+    payments: async (_: any, args: any, context: GraphQLContext) => {
+      let query = '';
+      if (args.patientId) query += `patientId=${args.patientId}&`;
+      if (args.facilityId) query += `facilityId=${args.facilityId}&`;
+      if (args.status) query += `status=${args.status}`;
+      
+      const data = await context.cachedProxyToService(
+        'payment-service',
+        `/api/v1/payments?${query}`,
+        'GET',
+        context.req,
+        { ttl: 120, keyPrefix: 'payments:list' }
+      );
+      return data.data || [];
+    },
+    
+    paymentStats: async (_: any, args: any, context: GraphQLContext) => {
+      let query = '';
+      if (args.facilityId) query += `facilityId=${args.facilityId}&`;
+      if (args.startDate) query += `startDate=${args.startDate}&`;
+      if (args.endDate) query += `endDate=${args.endDate}`;
+      
+      const data = await context.cachedProxyToService(
+        'payment-service',
+        `/api/v1/payments/stats?${query}`,
+        'GET',
+        context.req,
+        { ttl: 300, keyPrefix: 'payments:stats' }
+      );
+      return data.data;
+    },
+    
+    pendingVerifications: async (_: any, args: any, context: GraphQLContext) => {
+      let query = '';
+      if (args.facilityId) query += `facilityId=${args.facilityId}`;
+      
+      const data = await context.proxyToService(
+        'payment-service',
+        `/api/v1/payments/pending-verification?${query}`,
+        'GET',
+        context.req
+      );
+      return data.data || [];
+    },
+    
+    // ===== REFUND QUERIES =====
+    
+    refund: async (_: any, { id }: { id: string }, context: GraphQLContext) => {
+      const data = await context.cachedProxyToService(
+        'payment-service',
+        `/api/v1/refunds/${id}`,
+        'GET',
+        context.req,
+        { ttl: 300, keyPrefix: 'refunds' }
+      );
+      return data.data;
+    },
+    
+    refunds: async (_: any, args: any, context: GraphQLContext) => {
+      let query = '';
+      if (args.paymentId) query += `paymentId=${args.paymentId}`;
+      
+      const data = await context.proxyToService(
+        'payment-service',
+        `/api/v1/refunds?${query}`,
+        'GET',
+        context.req
+      );
+      return data.data || [];
     }
   },
   
@@ -213,6 +297,69 @@ export const resolvers = {
       
       // Invalidate cache
       await context.cache.invalidatePattern('business-service:/api/v1/appointments:*');
+      
+      return data.data;
+    },
+    
+    // ===== PAYMENT MUTATIONS =====
+    
+    initiatePayment: async (_: any, { input }: any, context: GraphQLContext) => {
+      const data = await context.proxyToService(
+        'payment-service',
+        '/api/v1/payments/initiate',
+        'POST',
+        { ...context.req, body: input }
+      );
+      
+      // Invalidate caches
+      await context.cache.invalidatePattern('payment-service:*');
+      await context.cache.invalidatePattern('billing-service:*');
+      
+      return data.data;
+    },
+    
+    verifyPayment: async (_: any, { input }: any, context: GraphQLContext) => {
+      const data = await context.proxyToService(
+        'payment-service',
+        '/api/v1/payments/verify',
+        'POST',
+        { ...context.req, body: input }
+      );
+      
+      // Invalidate payment caches
+      await context.cache.invalidatePattern('payment-service:*');
+      
+      return data.data;
+    },
+    
+    cancelPayment: async (_: any, { id, reason }: { id: string; reason: string }, context: GraphQLContext) => {
+      const data = await context.proxyToService(
+        'payment-service',
+        `/api/v1/payments/${id}/cancel`,
+        'PATCH',
+        { ...context.req, body: { reason } }
+      );
+      
+      // Invalidate caches
+      await context.cache.invalidatePattern('payment-service:*');
+      await context.cache.invalidatePattern('billing-service:*');
+      
+      return data.data;
+    },
+    
+    // ===== REFUND MUTATIONS =====
+    
+    requestRefund: async (_: any, { input }: any, context: GraphQLContext) => {
+      const data = await context.proxyToService(
+        'payment-service',
+        '/api/v1/refunds',
+        'POST',
+        { ...context.req, body: input }
+      );
+      
+      // Invalidate caches
+      await context.cache.invalidatePattern('payment-service:*');
+      await context.cache.invalidatePattern('billing-service:*');
       
       return data.data;
     }

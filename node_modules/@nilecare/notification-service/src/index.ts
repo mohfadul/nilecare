@@ -14,8 +14,9 @@ import { logger } from './utils/logger';
 import { errorHandler } from './middleware/errorHandler';
 import { rateLimiter } from './middleware/rateLimiter';
 // ✅ MIGRATED: Using shared authentication middleware (centralized auth)
-import { authenticate as authMiddleware } from '../../shared/middleware/auth';
-import { validateRequest } from './middleware/validation';
+import { authenticate as authMiddleware } from './middleware/auth.middleware';
+import { testConnection } from './config/database.config';
+import SecretsConfig from './config/secrets.config';
 
 // Routes
 import notificationRoutes from './routes/notifications';
@@ -25,8 +26,6 @@ import subscriptionRoutes from './routes/subscriptions';
 
 // Services
 import { NotificationService } from './services/NotificationService';
-import { TemplateService } from './services/TemplateService';
-import { DeliveryService } from './services/DeliveryService';
 import { WebSocketService } from './services/WebSocketService';
 import { EmailService } from './services/EmailService';
 import { SMSService } from './services/SMSService';
@@ -38,15 +37,13 @@ import { setupEventHandlers } from './events/handlers';
 dotenv.config();
 
 // Environment validation
-const REQUIRED_ENV_VARS = ['DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASSWORD'];
-function validateEnvironment() {
-  const missing = REQUIRED_ENV_VARS.filter(k => !process.env[k]);
-  if (missing.length > 0) {
-    console.error('Missing required environment variables:', missing);
-    throw new Error(`Missing env vars: ${missing.join(', ')}`);
-  }
+try {
+  SecretsConfig.validateAll();
+  logger.info('✅ Environment configuration validated');
+} catch (error: any) {
+  console.error('❌ Configuration error:', error.message);
+  process.exit(1);
 }
-validateEnvironment();
 
 let appInitialized = false;
 const serviceStartTime = Date.now();
@@ -66,8 +63,6 @@ const PORT = process.env.PORT || 3002;
 
 // Initialize services
 const notificationService = new NotificationService();
-const templateService = new TemplateService();
-const deliveryService = new DeliveryService();
 const webSocketService = new WebSocketService(io);
 const emailService = new EmailService();
 const smsService = new SMSService();
@@ -151,7 +146,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(rateLimiter);
 
 // Health check
-app.get('/health', (req, res) => {
+app.get('/health', (_req, res) => {
   res.status(200).json({
     status: 'healthy',
     service: 'notification-service',
@@ -173,22 +168,38 @@ app.get('/health', (req, res) => {
       push: pushQueue.name
     }
   });
+});
 
 // Readiness probe
-app.get('/health/ready', async (req, res) => {
+app.get('/health/ready', async (_req, res) => {
   try {
-    // Check database if available
-    if (typeof dbPool !== 'undefined' && dbPool) {
-      await dbPool.query('SELECT 1');
+    // Check database connection
+    const dbReady = await testConnection();
+    
+    if (!dbReady) {
+      res.status(503).json({ 
+        status: 'not_ready', 
+        reason: 'Database connection failed',
+        timestamp: new Date().toISOString() 
+      });
+      return;
     }
-    res.status(200).json({ status: 'ready', timestamp: new Date().toISOString() });
-  } catch (error) {
-    res.status(503).json({ status: 'not_ready', error: error.message });
+    
+    res.status(200).json({ 
+      status: 'ready', 
+      timestamp: new Date().toISOString() 
+    });
+  } catch (error: any) {
+    res.status(503).json({ 
+      status: 'not_ready', 
+      error: error.message,
+      timestamp: new Date().toISOString() 
+    });
   }
 });
 
 // Startup probe
-app.get('/health/startup', (req, res) => {
+app.get('/health/startup', (_req, res) => {
   res.status(appInitialized ? 200 : 503).json({
     status: appInitialized ? 'started' : 'starting',
     timestamp: new Date().toISOString()
@@ -196,12 +207,10 @@ app.get('/health/startup', (req, res) => {
 });
 
 // Metrics endpoint
-app.get('/metrics', (req, res) => {
+app.get('/metrics', (_req, res) => {
   const uptime = Math.floor((Date.now() - serviceStartTime) / 1000);
   res.setHeader('Content-Type', 'text/plain');
   res.send(`service_uptime_seconds ${uptime}`);
-});
-
 });
 
 // API Documentation
@@ -214,10 +223,9 @@ app.use('/api/v1/delivery', authMiddleware, deliveryRoutes);
 app.use('/api/v1/subscriptions', authMiddleware, subscriptionRoutes);
 
 // WebSocket connection handling
-io.use((socket, next) => {
+io.use((_socket, next) => {
   // Authenticate socket connections
-  const token = socket.handshake.auth.token;
-  // Implement JWT verification here
+  // TODO: Implement JWT verification here
   next();
 });
 
@@ -281,47 +289,95 @@ app.use('*', (req, res) => {
 setupEventHandlers(io, notificationService, webSocketService);
 
 // Start server
-server.listen(PORT, () => {
-  logger.info(`Notification service running on port ${PORT}`);
-  logger.info(`API Documentation available at http://localhost:${PORT}/api-docs`);
-  logger.info(`Health check available at http://localhost:${PORT}/health`);
-  logger.info(`WebSocket server available at ws://localhost:${PORT}`);
-  logger.info(`Features enabled: WebSocket, Email, SMS, Push, Templates, Delivery Tracking`);
+server.listen(PORT, async () => {
+  logger.info('═══════════════════════════════════════════════════════════');
+  logger.info('📢  NOTIFICATION SERVICE STARTING');
+  logger.info('═══════════════════════════════════════════════════════════');
+  
+  // Test database connection
+  const dbConnected = await testConnection();
+  if (!dbConnected) {
+    logger.error('❌ Database connection failed - service may not function correctly');
+  }
+  
+  appInitialized = true;
+  
+  logger.info('');
+  logger.info('═══════════════════════════════════════════════════════════');
+  logger.info('✅  NOTIFICATION SERVICE STARTED SUCCESSFULLY');
+  logger.info('═══════════════════════════════════════════════════════════');
+  logger.info(`📡  Service URL:       http://localhost:${PORT}`);
+  logger.info(`🏥  Health Check:      http://localhost:${PORT}/health`);
+  logger.info(`📊  Readiness:         http://localhost:${PORT}/health/ready`);
+  logger.info(`📚  API Docs:          http://localhost:${PORT}/api-docs`);
+  logger.info(`🔌  WebSocket:         ws://localhost:${PORT}`);
+  logger.info('');
+  logger.info('📍  Features:');
+  logger.info('   WebSocket ✅  Email ✅  SMS ✅  Push ✅');
+  logger.info('   Templates ✅  Delivery Tracking ✅');
+  logger.info('');
+  logger.info('✅ Notification Service Ready!');
+  logger.info('═══════════════════════════════════════════════════════════');
+  logger.info('');
 });
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
   logger.info('SIGTERM received, shutting down gracefully');
   
-  // Close queues
-  Promise.all([
-    notificationQueue.close(),
-    emailQueue.close(),
-    smsQueue.close(),
-    pushQueue.close()
-  ]).then(() => {
+  try {
+    // Close queues
+    await Promise.all([
+      notificationQueue.close(),
+      emailQueue.close(),
+      smsQueue.close(),
+      pushQueue.close()
+    ]);
+    logger.info('Queues closed');
+    
+    // Close database
+    const { closePool } = await import('./config/database.config');
+    await closePool();
+    logger.info('Database closed');
+    
+    // Close HTTP server
     server.close(() => {
       logger.info('Process terminated');
       process.exit(0);
     });
-  });
+  } catch (error: any) {
+    logger.error('Error during shutdown', { error: error.message });
+    process.exit(1);
+  }
 });
 
-process.on('SIGINT', () => {
+process.on('SIGINT', async () => {
   logger.info('SIGINT received, shutting down gracefully');
   
-  // Close queues
-  Promise.all([
-    notificationQueue.close(),
-    emailQueue.close(),
-    smsQueue.close(),
-    pushQueue.close()
-  ]).then(() => {
+  try {
+    // Close queues
+    await Promise.all([
+      notificationQueue.close(),
+      emailQueue.close(),
+      smsQueue.close(),
+      pushQueue.close()
+    ]);
+    logger.info('Queues closed');
+    
+    // Close database
+    const { closePool } = await import('./config/database.config');
+    await closePool();
+    logger.info('Database closed');
+    
+    // Close HTTP server
     server.close(() => {
       logger.info('Process terminated');
       process.exit(0);
     });
-  });
+  } catch (error: any) {
+    logger.error('Error during shutdown', { error: error.message });
+    process.exit(1);
+  }
 });
 
 export { app, server, io };

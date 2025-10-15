@@ -495,6 +495,146 @@ app.delete('/api/v1/appointments/:id', authenticate, async (req, res, next) => {
   }
 });
 
+// --- PAYMENTS (routed to payment-gateway-service) ---
+// ✅ Multi-provider payment processing for Sudan healthcare
+
+app.post('/api/v1/payments/initiate', authenticate, async (req, res, next) => {
+  try {
+    const data = await proxyToService('payment-service', '/api/v1/payments/initiate', 'POST', req);
+    
+    // Invalidate related caches (billing, invoices)
+    await cache.invalidatePattern('billing-service:*');
+    await cache.invalidatePattern('payment-service:*');
+    logger.info('Payment initiated', { paymentId: data.id });
+    
+    res.status(201).json(data);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/v1/payments/:id', authenticate, async (req, res, next) => {
+  try {
+    const data = await cachedProxyToService('payment-service', `/api/v1/payments/${req.params.id}`, 'GET', req, { ttl: 180 }); // 3 min cache
+    res.setHeader('X-Cache-Enabled', 'true');
+    res.json(data);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/v1/payments', authenticate, async (req, res, next) => {
+  try {
+    const data = await cachedProxyToService('payment-service', '/api/v1/payments', 'GET', req, { ttl: 120 }); // 2 min cache
+    res.setHeader('X-Cache-Enabled', 'true');
+    res.json(data);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/api/v1/payments/verify', authenticate, async (req, res, next) => {
+  try {
+    const data = await proxyToService('payment-service', '/api/v1/payments/verify', 'POST', req);
+    
+    // Invalidate payment caches
+    await cache.invalidatePattern('payment-service:*');
+    logger.info('Payment verified', { paymentId: req.body.paymentId });
+    
+    res.json(data);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/v1/payments/pending-verification', authenticate, async (req, res, next) => {
+  try {
+    const data = await proxyToService('payment-service', '/api/v1/payments/pending-verification', 'GET', req);
+    res.json(data);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/v1/payments/stats', authenticate, async (req, res, next) => {
+  try {
+    const data = await cachedProxyToService('payment-service', '/api/v1/payments/stats', 'GET', req, { ttl: 300 }); // 5 min cache
+    res.setHeader('X-Cache-Enabled', 'true');
+    res.json(data);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.patch('/api/v1/payments/:id/cancel', authenticate, async (req, res, next) => {
+  try {
+    const data = await proxyToService('payment-service', `/api/v1/payments/${req.params.id}/cancel`, 'PATCH', req);
+    
+    // Invalidate payment caches
+    await cache.invalidatePattern('payment-service:*');
+    await cache.invalidatePattern('billing-service:*');
+    
+    res.json(data);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Refunds
+app.post('/api/v1/refunds', authenticate, async (req, res, next) => {
+  try {
+    const data = await proxyToService('payment-service', '/api/v1/refunds', 'POST', req);
+    
+    // Invalidate caches
+    await cache.invalidatePattern('payment-service:*');
+    await cache.invalidatePattern('billing-service:*');
+    
+    res.status(201).json(data);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/v1/refunds/:id', authenticate, async (req, res, next) => {
+  try {
+    const data = await cachedProxyToService('payment-service', `/api/v1/refunds/${req.params.id}`, 'GET', req, { ttl: 300 }); // 5 min cache
+    res.setHeader('X-Cache-Enabled', 'true');
+    res.json(data);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Reconciliation
+app.post('/api/v1/reconciliation', authenticate, async (req, res, next) => {
+  try {
+    const data = await proxyToService('payment-service', '/api/v1/reconciliation', 'POST', req);
+    res.status(201).json(data);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/v1/reconciliation/:id', authenticate, async (req, res, next) => {
+  try {
+    const data = await cachedProxyToService('payment-service', `/api/v1/reconciliation/${req.params.id}`, 'GET', req, { ttl: 600 }); // 10 min cache
+    res.setHeader('X-Cache-Enabled', 'true');
+    res.json(data);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Webhook endpoint (no auth - signature verified by payment gateway)
+app.post('/api/v1/payments/webhook/:provider', async (req, res, next) => {
+  try {
+    const data = await proxyToService('payment-service', `/api/v1/payments/webhook/${req.params.provider}`, 'POST', req);
+    res.json(data);
+  } catch (error) {
+    next(error);
+  }
+});
+
 // --- BILLING (routed to billing-service) ---
 
 app.get('/api/v1/billing', authenticate, async (req, res, next) => {

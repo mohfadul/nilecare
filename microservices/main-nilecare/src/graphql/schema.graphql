@@ -97,6 +97,47 @@ type Invoice {
   paidAmount: Float!
   status: InvoiceStatus!
   dueDate: String
+  payments: [Payment!]
+}
+
+type Payment {
+  id: ID!
+  invoiceId: ID!
+  patientId: ID!
+  facilityId: ID!
+  amount: Float!
+  currency: String!
+  status: String!
+  providerName: String!
+  transactionId: String
+  merchantReference: String!
+  verificationMethod: String
+  verifiedBy: ID
+  verifiedAt: String
+  createdAt: String!
+  updatedAt: String!
+}
+
+type PaymentStats {
+  totalPayments: Int!
+  totalAmount: Float!
+  successfulPayments: Int!
+  pendingPayments: Int!
+  failedPayments: Int!
+  averageAmount: Float!
+}
+
+type Refund {
+  id: ID!
+  paymentId: ID!
+  refundAmount: Float!
+  refundReason: String!
+  status: String!
+  requestedBy: ID!
+  requestedAt: String!
+  approvedBy: ID
+  approvedAt: String
+  completedAt: String
 }
 
 enum InvoiceStatus {
@@ -126,6 +167,16 @@ type Query {
   # Billing queries
   invoice(id: ID!): Invoice
   invoices(patientId: ID, status: InvoiceStatus): [Invoice!]!
+  
+  # Payment queries (NEW)
+  payment(id: ID!): Payment
+  payments(patientId: ID, facilityId: ID, status: String): [Payment!]!
+  paymentStats(facilityId: ID, startDate: String, endDate: String): PaymentStats!
+  pendingVerifications(facilityId: ID): [Payment!]!
+  
+  # Refund queries (NEW)
+  refund(id: ID!): Refund
+  refunds(paymentId: ID): [Refund!]!
 }
 
 # ===== MUTATIONS =====
@@ -140,6 +191,14 @@ type Mutation {
   createAppointment(input: CreateAppointmentInput!): Appointment!
   updateAppointment(id: ID!, input: UpdateAppointmentInput!): Appointment!
   cancelAppointment(id: ID!): Appointment!
+  
+  # Payment mutations (NEW)
+  initiatePayment(input: InitiatePaymentInput!): Payment!
+  verifyPayment(input: VerifyPaymentInput!): Payment!
+  cancelPayment(id: ID!, reason: String!): Payment!
+  
+  # Refund mutations (NEW)
+  requestRefund(input: RequestRefundInput!): Refund!
 }
 
 # ===== INPUT TYPES =====
@@ -182,6 +241,32 @@ input UpdateAppointmentInput {
   status: AppointmentStatus
   reason: String
   duration: Int
+}
+
+input InitiatePaymentInput {
+  invoiceId: ID!
+  patientId: ID!
+  facilityId: ID!
+  providerName: String!
+  amount: Float!
+  currency: String
+  phoneNumber: String
+  paymentMethodDetails: String
+}
+
+input VerifyPaymentInput {
+  paymentId: ID!
+  verificationMethod: String!
+  verifiedBy: ID!
+  verificationNotes: String
+}
+
+input RequestRefundInput {
+  paymentId: ID!
+  refundAmount: Float!
+  refundReason: String!
+  refundReasonDetails: String
+  requestedBy: ID!
 }
 
 # ===== RESPONSE TYPES =====

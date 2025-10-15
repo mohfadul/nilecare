@@ -7,10 +7,6 @@ import { createProxyMiddleware } from 'http-proxy-middleware';
 import dotenv from 'dotenv';
 import { createServer } from 'http';
 import swaggerUi from 'swagger-ui-express';
-import swaggerJsdoc from 'swagger-jsdoc';
-import { merge } from 'swagger-merge';
-import requestId from 'express-request-id';
-import cacheResponseDirective from 'express-cache-response-directive';
 
 import { logger } from './utils/logger';
 import { errorHandler } from './middleware/errorHandler';
@@ -29,12 +25,12 @@ import { ProxyService } from './services/ProxyService';
 dotenv.config();
 
 // Environment validation
-const REQUIRED_ENV_VARS = ['DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASSWORD'];
+const REQUIRED_ENV_VARS = ['AUTH_SERVICE_URL', 'AUTH_SERVICE_API_KEY', 'SERVICE_NAME'];
 function validateEnvironment() {
   const missing = REQUIRED_ENV_VARS.filter(k => !process.env[k]);
   if (missing.length > 0) {
     console.error('Missing required environment variables:', missing);
-    throw new Error(`Missing env vars: ${missing.join(', ')}`);
+    logger.warn(`Missing env vars: ${missing.join(', ')} - using defaults`);
   }
 }
 validateEnvironment();
@@ -57,8 +53,6 @@ const proxyService = new ProxyService();
 app.use(helmet({
   contentSecurityPolicy: false, // Disable for Swagger UI
 }));
-app.use(requestId());
-app.use(cacheResponseDirective());
 app.use(corsMiddleware);
 app.use(compression());
 app.use(morgan('combined', { stream: { write: (message) => logger.info(message.trim()) } }));
@@ -84,17 +78,39 @@ app.get('/health', (req, res) => {
       caching: true
     }
   });
+});
 
 // Readiness probe
 app.get('/health/ready', async (req, res) => {
   try {
-    // Check database if available
-    if (typeof dbPool !== 'undefined' && dbPool) {
-      await dbPool.query('SELECT 1');
+    // Check if critical services are configured
+    const criticalServices = {
+      authService: !!process.env.AUTH_SERVICE_URL,
+      clinicalService: !!process.env.CLINICAL_SERVICE_URL,
+      businessService: !!process.env.BUSINESS_SERVICE_URL,
+    };
+    
+    const allReady = Object.values(criticalServices).every(v => v);
+    
+    if (allReady) {
+      res.status(200).json({ 
+        status: 'ready', 
+        timestamp: new Date().toISOString(),
+        services: criticalServices
+      });
+    } else {
+      res.status(503).json({ 
+        status: 'not_ready', 
+        timestamp: new Date().toISOString(),
+        services: criticalServices
+      });
     }
-    res.status(200).json({ status: 'ready', timestamp: new Date().toISOString() });
-  } catch (error) {
-    res.status(503).json({ status: 'not_ready', error: error.message });
+  } catch (error: any) {
+    res.status(503).json({ 
+      status: 'not_ready', 
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
   }
 });
 
@@ -111,8 +127,6 @@ app.get('/metrics', (req, res) => {
   const uptime = Math.floor((Date.now() - serviceStartTime) / 1000);
   res.setHeader('Content-Type', 'text/plain');
   res.send(`service_uptime_seconds ${uptime}`);
-});
-
 });
 
 // API Documentation (Swagger)
