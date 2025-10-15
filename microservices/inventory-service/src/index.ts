@@ -21,7 +21,8 @@ import locationRoutes from './routes/locations';
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
 import { requestLogger } from './middleware/logger';
-import { authMiddleware } from './middleware/auth';
+// ✅ MIGRATED: Using shared authentication middleware (centralized auth)
+import { authenticate as authMiddleware } from '../../shared/middleware/auth';
 import { validateRequest } from './middleware/validation';
 
 // Import services

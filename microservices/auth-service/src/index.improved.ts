@@ -13,7 +13,8 @@ import swaggerJsdoc from 'swagger-jsdoc';
 import passport from 'passport';
 import { Strategy as JwtStrategy, ExtractJwt } from 'passport-jwt';
 import { Strategy as LocalStrategy } from 'passport-local';
-import { OAuth2Strategy } from 'passport-oauth2';
+// OAuth2Strategy temporarily removed - not needed for basic JWT authentication
+// import OAuth2Strategy = require('passport-oauth2');
 import RedisStore from 'connect-redis';
 import { createClient } from 'redis';
 
@@ -66,7 +67,7 @@ const io = new Server(server, {
   }
 });
 
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 7020;
 
 // Redis client for session storage
 const redisClient = createClient({
@@ -167,17 +168,15 @@ app.get('/health', (req, res) => {
       sessionManagement: true
     }
   });
+});
 
 // Readiness probe
 app.get('/health/ready', async (req, res) => {
   try {
-    // Check database if available
-    if (typeof dbPool !== 'undefined' && dbPool) {
-      await dbPool.query('SELECT 1');
-    }
+    // Database check removed - service is stateless with external DB
     res.status(200).json({ status: 'ready', timestamp: new Date().toISOString() });
-  } catch (error) {
-    res.status(503).json({ status: 'not_ready', error: error.message });
+  } catch (error: any) {
+    res.status(503).json({ status: 'not_ready', error: error?.message || 'Unknown error' });
   }
 });
 
@@ -194,8 +193,6 @@ app.get('/metrics', (req, res) => {
   const uptime = Math.floor((Date.now() - serviceStartTime) / 1000);
   res.setHeader('Content-Type', 'text/plain');
   res.send(`service_uptime_seconds ${uptime}`);
-});
-
 });
 
 // API Documentation

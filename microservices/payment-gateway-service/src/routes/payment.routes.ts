@@ -5,7 +5,8 @@
 
 import { Router } from 'express';
 import PaymentController from '../controllers/payment.controller';
-import { authGuard } from '../guards/payment-auth.guard';
+// ✅ UPDATED: Using shared authentication middleware (centralized auth)
+import { authenticate } from '../../../shared/middleware/auth';
 import { financeRoleGuard } from '../guards/finance-role.guard';
 import { paymentRateLimiter, webhookRateLimiter } from '../middleware/rate-limiter';
 import { validateBody } from '../middleware/validation.middleware';
@@ -33,7 +34,7 @@ const router = Router();
  */
 router.post(
   '/initiate',
-  authGuard,
+  authenticate,
   paymentRateLimiter,
   validateBody(CreatePaymentDtoValidator.schema),
   paymentController.initiatePayment.bind(paymentController)
@@ -46,7 +47,7 @@ router.post(
  */
 router.get(
   '/:id',
-  authGuard,
+  authenticate,
   paymentController.getPayment.bind(paymentController)
 );
 
@@ -57,7 +58,7 @@ router.get(
  */
 router.get(
   '/',
-  authGuard,
+  authenticate,
   paymentController.listPayments.bind(paymentController)
 );
 
@@ -68,7 +69,7 @@ router.get(
  */
 router.post(
   '/verify',
-  authGuard,
+  authenticate,
   financeRoleGuard,
   validateBody(VerifyPaymentDtoValidator.schema),
   paymentController.verifyPayment.bind(paymentController)
@@ -81,7 +82,7 @@ router.post(
  */
 router.get(
   '/pending-verification',
-  authGuard,
+  authenticate,
   financeRoleGuard,
   paymentController.getPendingVerifications.bind(paymentController)
 );
@@ -93,7 +94,7 @@ router.get(
  */
 router.patch(
   '/:id/cancel',
-  authGuard,
+  authenticate,
   financeRoleGuard,
   paymentController.cancelPayment.bind(paymentController)
 );
@@ -105,7 +106,7 @@ router.patch(
  */
 router.get(
   '/stats',
-  authGuard,
+  authenticate,
   financeRoleGuard,
   paymentController.getPaymentStats.bind(paymentController)
 );

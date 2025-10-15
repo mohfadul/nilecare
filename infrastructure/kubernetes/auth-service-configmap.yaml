@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: auth-service-config
+  namespace: nilecare
+  labels:
+    app: auth-service
+data:
+  # Auth Service Configuration
+  jwt.issuer: "nilecare-auth"
+  jwt.audience: "nilecare-api"
+  jwt.access.expiry: "15m"
+  jwt.refresh.expiry: "7d"
+  
+  # Security Settings
+  bcrypt.rounds: "12"
+  max.login.attempts: "5"
+  lockout.duration.minutes: "30"
+  password.reset.expiry.hours: "1"
+  
+  # Feature Flags
+  enable.mfa: "true"
+  enable.password.breach.check: "true"
+  enable.device.fingerprinting: "true"
+  enable.csrf.protection: "true"
+  enable.email.verification: "true"
+  enable.audit.logging: "true"
+  
+  # Rate Limiting
+  rate.limit.login.max: "5"
+  rate.limit.login.window: "5"
+  rate.limit.register.max: "3"
+  rate.limit.register.window: "60"
+  
+  # Logging
+  log.level: "info"
+  log.format: "json"
+  
+  # Service Discovery
+  auth.service.url: "http://auth-service:3001"
+  client.url: "http://web-dashboard:3000"
+

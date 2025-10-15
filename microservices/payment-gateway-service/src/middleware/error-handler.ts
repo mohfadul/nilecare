@@ -24,6 +24,26 @@ export const errorHandler = (
   res: Response,
   _next: NextFunction
 ): void => {
+  // Handle aborted requests gracefully (don't log as errors)
+  if (error.name === 'BadRequestError' && error.message === 'request aborted') {
+    console.log('[Info] Request aborted by client:', {
+      path: req.path,
+      method: req.method,
+      timestamp: new Date().toISOString()
+    });
+    // Don't try to send response if connection is already closed
+    if (!res.headersSent) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'REQUEST_ABORTED',
+          message: 'Request was aborted'
+        }
+      });
+    }
+    return;
+  }
+
   // Log error
   console.error('[Error]', {
     name: error.name,
@@ -33,6 +53,12 @@ export const errorHandler = (
     method: req.method,
     timestamp: new Date().toISOString()
   });
+
+  // Don't send response if headers already sent
+  if (res.headersSent) {
+    console.log('[Error] Cannot send error response - headers already sent');
+    return;
+  }
 
   // Payment error (custom)
   if (error instanceof PaymentError) {

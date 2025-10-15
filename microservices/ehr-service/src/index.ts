@@ -10,18 +10,18 @@ import swaggerUi from 'swagger-ui-express';
 import swaggerJsdoc from 'swagger-jsdoc';
 
 import { logger } from './utils/logger';
-import { errorHandler } from './middleware/errorHandler';
+import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { rateLimiter } from './middleware/rateLimiter';
-import { authMiddleware } from './middleware/auth';
 import { validateRequest } from './middleware/validation';
+// ✅ MIGRATED: Using shared authentication middleware (centralized auth)
+import { authenticate as authMiddleware } from '../../shared/middleware/auth';
+import { initializeDatabases, closeDatabases, healthCheck as dbHealthCheck } from './utils/database';
 
 // Routes
-import ehrRoutes from './routes/ehr';
-import problemListRoutes from './routes/problem-lists';
 import soapNotesRoutes from './routes/soap-notes';
+import problemListRoutes from './routes/problem-list';
 import progressNotesRoutes from './routes/progress-notes';
-import clinicalDocumentRoutes from './routes/clinical-documents';
-import medicalHistoryRoutes from './routes/medical-history';
+import exportRoutes from './routes/export';
 
 // Event handlers
 import { setupEventHandlers } from './events/handlers';
@@ -33,9 +33,14 @@ const REQUIRED_ENV_VARS = ['DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASSWORD'];
 function validateEnvironment() {
   const missing = REQUIRED_ENV_VARS.filter(k => !process.env[k]);
   if (missing.length > 0) {
-    console.error('Missing required environment variables:', missing);
+    console.error('❌ Missing required environment variables:', missing);
+    console.error('╔═══════════════════════════════════════════════════╗');
+    console.error('║   ENVIRONMENT VALIDATION FAILED                   ║');
+    console.error('╚═══════════════════════════════════════════════════╝');
+    missing.forEach(v => console.error(`❌ Missing: ${v}`));
     throw new Error(`Missing env vars: ${missing.join(', ')}`);
   }
+  logger.info('✅ Environment variables validated');
 }
 validateEnvironment();
 
@@ -105,28 +110,46 @@ app.get('/health', (req, res) => {
     service: 'ehr-service',
     timestamp: new Date().toISOString(),
     version: process.env.npm_package_version || '1.0.0',
+    uptime: Math.floor((Date.now() - serviceStartTime) / 1000),
     features: {
-      electronicHealthRecords: true,
-      clinicalDocumentation: true,
-      problemLists: true,
       soapNotes: true,
+      problemList: true,
       progressNotes: true,
-      medicalHistory: true,
-      fhirCompliance: true,
-      hl7Integration: true
+      documentExport: true,
+      documentVersioning: true,
+      amendmentTracking: true,
+      clinicalDocumentation: true,
+      fhirSupport: true,
+      multiDatabaseSupport: true
     }
   });
+});
 
 // Readiness probe
 app.get('/health/ready', async (req, res) => {
   try {
-    // Check database if available
-    if (typeof dbPool !== 'undefined' && dbPool) {
-      await dbPool.query('SELECT 1');
+    // Check all databases
+    const health = await dbHealthCheck();
+    
+    if (health.healthy) {
+      res.status(200).json({ 
+        status: 'ready', 
+        timestamp: new Date().toISOString(),
+        databases: health.databases
+      });
+    } else {
+      res.status(503).json({ 
+        status: 'not_ready', 
+        timestamp: new Date().toISOString(),
+        databases: health.databases
+      });
     }
-    res.status(200).json({ status: 'ready', timestamp: new Date().toISOString() });
-  } catch (error) {
-    res.status(503).json({ status: 'not_ready', error: error.message });
+  } catch (error: any) {
+    res.status(503).json({ 
+      status: 'not_ready', 
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
   }
 });
 
@@ -145,18 +168,14 @@ app.get('/metrics', (req, res) => {
   res.send(`service_uptime_seconds ${uptime}`);
 });
 
-});
-
 // API Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // API Routes
-app.use('/api/v1/ehr', authMiddleware, ehrRoutes);
-app.use('/api/v1/problem-lists', authMiddleware, problemListRoutes);
-app.use('/api/v1/soap-notes', authMiddleware, soapNotesRoutes);
-app.use('/api/v1/progress-notes', authMiddleware, progressNotesRoutes);
-app.use('/api/v1/clinical-documents', authMiddleware, clinicalDocumentRoutes);
-app.use('/api/v1/medical-history', authMiddleware, medicalHistoryRoutes);
+app.use('/api/v1/soap-notes', soapNotesRoutes);
+app.use('/api/v1/problem-list', problemListRoutes);
+app.use('/api/v1/progress-notes', progressNotesRoutes);
+app.use('/api/v1/export', exportRoutes);
 
 // Socket.IO for real-time EHR updates
 io.use((socket, next) => {
@@ -188,40 +207,95 @@ io.on('connection', (socket) => {
 app.use(errorHandler);
 
 // 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({
-    error: 'Route not found',
-    path: req.originalUrl,
-    method: req.method
-  });
-});
+app.use('*', notFoundHandler);
 
 // Setup event handlers
 setupEventHandlers(io);
 
+// ==================================================================
+// SERVICE INITIALIZATION
+// ==================================================================
+
+async function initializeService(): Promise<void> {
+  try {
+    logger.info('🚀 Initializing EHR Service...');
+    
+    // Test database connections
+    logger.info('📊 Connecting to databases...');
+    const dbStatus = await initializeDatabases();
+    
+    if (!dbStatus.postgresql) {
+      logger.error('❌ PostgreSQL not connected - EHR service requires PostgreSQL');
+      throw new Error('PostgreSQL connection required');
+    }
+    if (!dbStatus.mongodb) {
+      logger.warn('⚠️  MongoDB not connected - document storage features may be limited');
+    }
+    
+    // Mark as initialized
+    appInitialized = true;
+    logger.info('✅ EHR Service initialization complete');
+    
+  } catch (error: any) {
+    logger.error('❌ EHR Service initialization failed:', error.message);
+    throw error;
+  }
+}
+
 // Start server
-server.listen(PORT, () => {
-  logger.info(`EHR service running on port ${PORT}`);
-  logger.info(`API Documentation available at http://localhost:${PORT}/api-docs`);
-  logger.info(`Health check available at http://localhost:${PORT}/health`);
-  logger.info(`Features enabled: Electronic Health Records, Clinical Documentation, Problem Lists, SOAP Notes, Progress Notes`);
-});
+(async () => {
+  try {
+    // Initialize service
+    await initializeService();
+    
+    // Start HTTP server
+    server.listen(PORT, () => {
+      logger.info('╔═══════════════════════════════════════════════════╗');
+      logger.info('║   ELECTRONIC HEALTH RECORD SERVICE STARTED        ║');
+      logger.info('╚═══════════════════════════════════════════════════╝');
+      logger.info(`✅ Service: ehr-service`);
+      logger.info(`✅ Version: 1.0.0`);
+      logger.info(`✅ Port: ${PORT}`);
+      logger.info(`✅ Environment: ${process.env.NODE_ENV || 'development'}`);
+      logger.info(`✅ Started at: ${new Date().toISOString()}`);
+      logger.info(`✅ Health: http://localhost:${PORT}/health`);
+      logger.info(`✅ API Docs: http://localhost:${PORT}/api-docs`);
+      logger.info('═══════════════════════════════════════════════════');
+      logger.info('Features: SOAP Notes | Problem Lists | Progress Notes | Document Export | Versioning');
+    });
+  } catch (error: any) {
+    logger.error('❌ Failed to start EHR service:', error.message);
+    process.exit(1);
+  }
+})();
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
-  logger.info('SIGTERM received, shutting down gracefully');
-  server.close(() => {
-    logger.info('Process terminated');
+const shutdown = async (signal: string) => {
+  logger.info(`${signal} received, shutting down gracefully`);
+  
+  server.close(async () => {
+    logger.info('HTTP server closed');
+    
+    // Close database connections
+    await closeDatabases();
+    
+    // Close Socket.IO
+    io.close(() => {
+      logger.info('✅ Socket.IO closed');
+    });
+    
+    logger.info('✅ EHR service shut down successfully');
     process.exit(0);
   });
-});
+  
+  // Force shutdown after 30 seconds
+  setTimeout(() => {
+    logger.error('⚠️  Forced shutdown after timeout');
+    process.exit(1);
+  }, 30000);
+};
 
-process.on('SIGINT', () => {
-  logger.info('SIGINT received, shutting down gracefully');
-  server.close(() => {
-    logger.info('Process terminated');
-    process.exit(0);
-  });
-});
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
 
 export { app, server, io };

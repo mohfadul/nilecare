@@ -33,10 +33,18 @@ import {
   CheckCircle,
   Visibility,
   EventAvailable,
+  FilterList,
+  Schedule,
+  MeetingRoom,
+  Notifications,
+  Queue,
+  CalendarToday,
 } from '@mui/icons-material';
 import { apiClient } from '../../services/api.client';
+import { appointmentApi } from '../../services/appointment.api';
 import { useSnackbar } from 'notistack';
 import { format } from 'date-fns';
+import AppointmentAdvancedSearch from '../../components/AdvancedSearch/AppointmentAdvancedSearch';
 
 interface Appointment {
   id: string;
@@ -64,15 +72,18 @@ const AppointmentList: React.FC = () => {
   // Filters
   const [statusFilter, setStatusFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('');
+  const [advancedSearchOpen, setAdvancedSearchOpen] = useState(false);
+  const [activeFilters, setActiveFilters] = useState<any>(null);
 
   useEffect(() => {
     loadAppointments();
-  }, [page, rowsPerPage, statusFilter, dateFilter]);
+  }, [page, rowsPerPage, statusFilter, dateFilter, activeFilters]);
 
   const loadAppointments = async () => {
     try {
       setLoading(true);
 
+      // Build filters
       const filters: any = {
         page: page + 1,
         limit: rowsPerPage,
@@ -86,22 +97,37 @@ const AppointmentList: React.FC = () => {
         filters.date = dateFilter;
       }
 
-      const result = await apiClient.getAppointments(filters);
+      // Use appointment microservice API
+      const result = await appointmentApi.getAppointments(filters);
 
       if (result.success && result.data) {
-        setAppointments(result.data.appointments || []);
-        setTotalCount(result.data.pagination?.total || 0);
+        const appointmentData = result.data.appointments || result.data;
+        setAppointments(appointmentData);
+        setTotalCount(result.data.pagination?.total || appointmentData.length);
       }
     } catch (err: any) {
+      console.error('Failed to load appointments:', err);
       enqueueSnackbar('Failed to load appointments', { variant: 'error' });
     } finally {
       setLoading(false);
     }
   };
 
+  const handleCheckIn = async (appointmentId: string) => {
+    try {
+      const result = await appointmentApi.updateAppointmentStatus(appointmentId, 'in_progress');
+      if (result.success) {
+        enqueueSnackbar('Patient checked-in successfully', { variant: 'success' });
+        loadAppointments();
+      }
+    } catch (err) {
+      enqueueSnackbar('Failed to check-in patient', { variant: 'error' });
+    }
+  };
+
   const handleConfirm = async (appointmentId: string) => {
     try {
-      const result = await apiClient.confirmAppointment(appointmentId);
+      const result = await appointmentApi.confirmAppointment(appointmentId);
       if (result.success) {
         enqueueSnackbar('Appointment confirmed', { variant: 'success' });
         loadAppointments();
@@ -111,12 +137,25 @@ const AppointmentList: React.FC = () => {
     }
   };
 
+  const handleComplete = async (appointmentId: string) => {
+    try {
+      const result = await appointmentApi.completeAppointment(appointmentId);
+      if (result.success) {
+        enqueueSnackbar('Appointment completed', { variant: 'success' });
+        loadAppointments();
+      }
+    } catch (err) {
+      enqueueSnackbar('Failed to complete appointment', { variant: 'error' });
+    }
+  };
+
   const handleCancel = async (appointmentId: string) => {
-    const reason = window.prompt('Enter cancellation reason:');
-    if (!reason) return;
+    if (!window.confirm('Are you sure you want to cancel this appointment?')) {
+      return;
+    }
 
     try {
-      const result = await apiClient.cancelAppointment(appointmentId, reason);
+      const result = await appointmentApi.cancelAppointment(appointmentId);
       if (result.success) {
         enqueueSnackbar('Appointment cancelled', { variant: 'success' });
         loadAppointments();
@@ -124,6 +163,29 @@ const AppointmentList: React.FC = () => {
     } catch (err) {
       enqueueSnackbar('Failed to cancel appointment', { variant: 'error' });
     }
+  };
+
+  const handleScheduleReminder = async (appointmentId: string) => {
+    try {
+      const result = await appointmentApi.scheduleReminders(appointmentId);
+      if (result.success) {
+        enqueueSnackbar('Reminders scheduled successfully', { variant: 'success' });
+      }
+    } catch (err) {
+      enqueueSnackbar('Failed to schedule reminders', { variant: 'error' });
+    }
+  };
+
+  const handleViewSchedule = () => {
+    navigate('/dashboard/appointments/schedule');
+  };
+
+  const handleViewWaitlist = () => {
+    navigate('/dashboard/appointments/waitlist');
+  };
+
+  const handleViewResources = () => {
+    navigate('/dashboard/appointments/resources');
   };
 
   const getStatusColor = (status: string): 'default' | 'primary' | 'success' | 'warning' | 'error' => {
@@ -138,6 +200,26 @@ const AppointmentList: React.FC = () => {
     return statusColors[status] || 'default';
   };
 
+  const handleAdvancedSearch = (filters: any) => {
+    setActiveFilters(filters);
+    setPage(0);
+    // Clear simple filters when using advanced search
+    setStatusFilter('all');
+    setDateFilter('');
+    enqueueSnackbar(
+      `Applied ${Object.keys(filters).length} filter(s)`,
+      { variant: 'info' }
+    );
+  };
+
+  const handleClearFilters = () => {
+    setActiveFilters(null);
+    setStatusFilter('all');
+    setDateFilter('');
+    setPage(0);
+    enqueueSnackbar('Filters cleared', { variant: 'info' });
+  };
+
   return (
     <Box>
       {/* Header */}
@@ -145,14 +227,37 @@ const AppointmentList: React.FC = () => {
         <Typography variant="h4" fontWeight="bold">
           Appointments / المواعيد
         </Typography>
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={() => navigate('/dashboard/appointments/new')}
-          size="large"
-        >
-          Book Appointment / حجز موعد
-        </Button>
+        <Stack direction="row" spacing={2}>
+          <Button
+            variant="outlined"
+            startIcon={<Schedule />}
+            onClick={handleViewSchedule}
+          >
+            Schedules
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<Queue />}
+            onClick={handleViewWaitlist}
+          >
+            Waitlist
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<MeetingRoom />}
+            onClick={handleViewResources}
+          >
+            Resources
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={() => navigate('/dashboard/appointments/new')}
+            size="large"
+          >
+            Book Appointment
+          </Button>
+        </Stack>
       </Box>
 
       {/* Filters */}
@@ -166,6 +271,7 @@ const AppointmentList: React.FC = () => {
                 label="Status Filter"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
+                disabled={activeFilters !== null}
               >
                 <MenuItem value="all">All Statuses</MenuItem>
                 <MenuItem value="scheduled">Scheduled</MenuItem>
@@ -184,9 +290,43 @@ const AppointmentList: React.FC = () => {
                 value={dateFilter}
                 onChange={(e) => setDateFilter(e.target.value)}
                 InputLabelProps={{ shrink: true }}
+                disabled={activeFilters !== null}
               />
             </Grid>
+            
+            <Grid item xs={12} sm={6} md={3}>
+              <Stack direction="row" spacing={1}>
+                <Button
+                  fullWidth
+                  variant="outlined"
+                  startIcon={<FilterList />}
+                  onClick={() => setAdvancedSearchOpen(true)}
+                >
+                  Advanced Search
+                </Button>
+                {activeFilters && (
+                  <Button
+                    variant="outlined"
+                    color="secondary"
+                    onClick={handleClearFilters}
+                  >
+                    Clear
+                  </Button>
+                )}
+              </Stack>
+            </Grid>
           </Grid>
+          
+          {activeFilters && (
+            <Box sx={{ mt: 2 }}>
+              <Chip
+                label={`${Object.keys(activeFilters).length} filter(s) applied`}
+                color="primary"
+                onDelete={handleClearFilters}
+                size="small"
+              />
+            </Box>
+          )}
         </Box>
       </Card>
 
@@ -225,10 +365,10 @@ const AppointmentList: React.FC = () => {
                   <TableRow key={appointment.id} hover>
                     <TableCell>
                       <Typography variant="body2" fontWeight="medium">
-                        {format(new Date(appointment.appointmentDate), 'MMM dd, yyyy')}
+                        {appointment.appointmentDate ? format(new Date(appointment.appointmentDate), 'MMM dd, yyyy') : 'N/A'}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
-                        {format(new Date(appointment.appointmentDate), 'hh:mm a')}
+                        {(appointment as any).appointmentTime || 'N/A'}
                       </Typography>
                     </TableCell>
                     <TableCell>{appointment.patientName || 'N/A'}</TableCell>
@@ -245,27 +385,90 @@ const AppointmentList: React.FC = () => {
                       />
                     </TableCell>
                     <TableCell align="right">
-                      <IconButton size="small" onClick={() => navigate(`/dashboard/appointments/${appointment.id}`)}>
-                        <Visibility fontSize="small" />
-                      </IconButton>
-                      {appointment.status === 'scheduled' && (
-                        <>
+                      <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                        <IconButton 
+                          size="small" 
+                          onClick={() => navigate(`/dashboard/appointments/${appointment.id}`)}
+                          title="View Details"
+                        >
+                          <Visibility fontSize="small" />
+                        </IconButton>
+                        
+                        {(appointment.status === 'scheduled' || appointment.status === 'confirmed') && (
+                          <IconButton
+                            size="small"
+                            color="secondary"
+                            onClick={() => handleScheduleReminder(appointment.id)}
+                            title="Schedule Reminder"
+                          >
+                            <Notifications fontSize="small" />
+                          </IconButton>
+                        )}
+                        
+                        {appointment.status === 'scheduled' && (
+                          <>
+                            <IconButton
+                              size="small"
+                              color="info"
+                              onClick={() => handleCheckIn(appointment.id)}
+                              title="Check-In"
+                            >
+                              <CheckCircle fontSize="small" />
+                            </IconButton>
+                            <IconButton
+                              size="small"
+                              color="error"
+                              onClick={() => handleCancel(appointment.id)}
+                              title="Cancel"
+                            >
+                              <Cancel fontSize="small" />
+                            </IconButton>
+                          </>
+                        )}
+
+                        {appointment.status === 'confirmed' && (
+                          <>
+                            <IconButton
+                              size="small"
+                              color="success"
+                              onClick={() => handleCheckIn(appointment.id)}
+                              title="Check-In"
+                            >
+                              <CheckCircle fontSize="small" />
+                            </IconButton>
+                            <IconButton
+                              size="small"
+                              color="error"
+                              onClick={() => handleCancel(appointment.id)}
+                              title="Cancel"
+                            >
+                              <Cancel fontSize="small" />
+                            </IconButton>
+                          </>
+                        )}
+
+                        {appointment.status === 'checked-in' && (
                           <IconButton
                             size="small"
                             color="success"
-                            onClick={() => handleConfirm(appointment.id)}
+                            onClick={() => handleComplete(appointment.id)}
+                            title="Complete"
                           >
                             <CheckCircle fontSize="small" />
                           </IconButton>
+                        )}
+
+                        {(appointment.status === 'scheduled' || appointment.status === 'confirmed') && (
                           <IconButton
                             size="small"
-                            color="error"
-                            onClick={() => handleCancel(appointment.id)}
+                            color="primary"
+                            onClick={() => navigate(`/dashboard/appointments/${appointment.id}/edit`)}
+                            title="Edit"
                           >
-                            <Cancel fontSize="small" />
+                            <Edit fontSize="small" />
                           </IconButton>
-                        </>
-                      )}
+                        )}
+                      </Stack>
                     </TableCell>
                   </TableRow>
                 ))
@@ -287,6 +490,13 @@ const AppointmentList: React.FC = () => {
           rowsPerPageOptions={[5, 10, 25, 50]}
         />
       </Card>
+
+      {/* Advanced Search Dialog */}
+      <AppointmentAdvancedSearch
+        open={advancedSearchOpen}
+        onClose={() => setAdvancedSearchOpen(false)}
+        onSearch={handleAdvancedSearch}
+      />
     </Box>
   );
 };

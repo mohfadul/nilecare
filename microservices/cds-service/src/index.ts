@@ -10,10 +10,12 @@ import swaggerUi from 'swagger-ui-express';
 import swaggerJsdoc from 'swagger-jsdoc';
 
 import { logger } from './utils/logger';
-import { errorHandler } from './middleware/errorHandler';
-import { rateLimiter } from './middleware/rateLimiter';
-import { authMiddleware } from './middleware/auth';
-import { validateRequest } from './middleware/validation';
+import { errorHandler, notFoundHandler } from './middleware/errorHandler';
+import { rateLimiter, safetyCheckLimiter } from './middleware/rateLimiter';
+import { validateRequest, schemas } from './middleware/validation';
+// ✅ MIGRATED: Using shared authentication middleware (centralized auth)
+import { authenticate as authMiddleware } from '../../shared/middleware/auth';
+import { initializeDatabases, closeDatabases, healthCheck as dbHealthCheck } from './utils/database';
 
 // Routes
 import drugInteractionRoutes from './routes/drug-interactions';
@@ -24,12 +26,12 @@ import contraindicationRoutes from './routes/contraindications';
 import alertRoutes from './routes/alerts';
 
 // Services
-import { DrugInteractionService } from './services/DrugInteractionService';
-import { AllergyService } from './services/AllergyService';
-import { DoseValidationService } from './services/DoseValidationService';
-import { ClinicalGuidelinesService } from './services/ClinicalGuidelinesService';
-import { ContraindicationService } from './services/ContraindicationService';
-import { AlertService } from './services/AlertService';
+import DrugInteractionService from './services/DrugInteractionService';
+import AllergyService from './services/AllergyService';
+import DoseValidationService from './services/DoseValidationService';
+import ClinicalGuidelinesService from './services/ClinicalGuidelinesService';
+import ContraindicationService from './services/ContraindicationService';
+import AlertService from './services/AlertService';
 
 // Event handlers
 import { setupEventHandlers } from './events/handlers';
@@ -132,17 +134,33 @@ app.get('/health', (req, res) => {
       nlpProcessing: true
     }
   });
+});
 
 // Readiness probe
 app.get('/health/ready', async (req, res) => {
   try {
-    // Check database if available
-    if (typeof dbPool !== 'undefined' && dbPool) {
-      await dbPool.query('SELECT 1');
+    // Check all databases
+    const health = await dbHealthCheck();
+    
+    if (health.healthy) {
+      res.status(200).json({ 
+        status: 'ready', 
+        timestamp: new Date().toISOString(),
+        databases: health.databases
+      });
+    } else {
+      res.status(503).json({ 
+        status: 'not_ready', 
+        timestamp: new Date().toISOString(),
+        databases: health.databases
+      });
     }
-    res.status(200).json({ status: 'ready', timestamp: new Date().toISOString() });
-  } catch (error) {
-    res.status(503).json({ status: 'not_ready', error: error.message });
+  } catch (error: any) {
+    res.status(503).json({ 
+      status: 'not_ready', 
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
   }
 });
 
@@ -161,8 +179,6 @@ app.get('/metrics', (req, res) => {
   res.send(`service_uptime_seconds ${uptime}`);
 });
 
-});
-
 // API Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
@@ -174,58 +190,155 @@ app.use('/api/v1/clinical-guidelines', authMiddleware, clinicalGuidelinesRoutes)
 app.use('/api/v1/contraindications', authMiddleware, contraindicationRoutes);
 app.use('/api/v1/alerts', authMiddleware, alertRoutes);
 
-// Real-time alert endpoints
-app.post('/api/v1/check-medication', authMiddleware, async (req, res) => {
-  try {
-    const { patientId, medications, allergies, conditions } = req.body;
-    
-    // Check drug interactions
-    const interactions = await drugInteractionService.checkInteractions(medications);
-    
-    // Check allergy alerts
-    const allergyAlerts = await allergyService.checkAllergies(medications, allergies);
-    
-    // Check contraindications
-    const contraindications = await contraindicationService.checkContraindications(medications, conditions);
-    
-    // Check dose validation
-    const doseValidation = await doseValidationService.validateDoses(medications, patientId);
-    
-    // Get clinical guidelines
-    const guidelines = await clinicalGuidelinesService.getGuidelines(medications, conditions);
-    
-    const result = {
-      interactions,
-      allergyAlerts,
-      contraindications,
-      doseValidation,
-      guidelines,
-      overallRisk: calculateOverallRisk(interactions, allergyAlerts, contraindications, doseValidation)
-    };
-    
-    // Emit real-time alert if high risk
-    if (result.overallRisk.level === 'high') {
-      io.to(`patient-${patientId}`).emit('clinical-alert', {
-        type: 'high-risk-medication',
-        severity: 'critical',
-        message: 'High-risk medication combination detected',
-        details: result,
+// ==================================================================
+// COMPREHENSIVE MEDICATION SAFETY CHECK ENDPOINT
+// ==================================================================
+/**
+ * @swagger
+ * /api/v1/check-medication:
+ *   post:
+ *     summary: Comprehensive medication safety check
+ *     description: Performs all safety checks (interactions, allergies, dose, contraindications, guidelines)
+ *     tags: [Safety Checks]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - patientId
+ *               - medications
+ *             properties:
+ *               patientId:
+ *                 type: string
+ *               medications:
+ *                 type: array
+ *               allergies:
+ *                 type: array
+ *               conditions:
+ *                 type: array
+ *               patientAge:
+ *                 type: number
+ *               patientWeight:
+ *                 type: number
+ *               renalFunction:
+ *                 type: number
+ *               hepaticFunction:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Complete safety assessment
+ */
+app.post(
+  '/api/v1/check-medication', 
+  authMiddleware, 
+  safetyCheckLimiter,
+  validateRequest({ body: schemas.medicationSafetyCheck }),
+  async (req, res) => {
+    try {
+      const { 
+        patientId, 
+        medications, 
+        allergies = [], 
+        conditions = [],
+        patientAge,
+        patientWeight,
+        renalFunction,
+        hepaticFunction
+      } = req.body;
+
+      const userId = (req as any).user?.userId || 'system';
+      const facilityId = (req as any).user?.facilityId;
+      const organizationId = (req as any).user?.organizationId;
+
+      logger.info(`Comprehensive safety check for patient ${patientId} with ${medications.length} medications`);
+
+      // Run all safety checks in parallel
+      const [
+        interactions,
+        allergyAlerts,
+        contraindications,
+        doseValidation,
+        guidelines
+      ] = await Promise.all([
+        drugInteractionService.checkInteractions(medications),
+        allergyService.checkAllergies(medications, allergies),
+        contraindicationService.checkContraindications(medications, conditions),
+        doseValidationService.validateDoses(medications, {
+          patientId,
+          age: patientAge,
+          weight: patientWeight,
+          renalFunction,
+          hepaticFunction
+        }),
+        clinicalGuidelinesService.getGuidelines(medications, conditions)
+      ]);
+
+      // Calculate overall risk
+      const overallRisk = calculateOverallRisk(
+        interactions,
+        allergyAlerts,
+        contraindications,
+        doseValidation
+      );
+
+      const result = {
+        interactions,
+        allergyAlerts,
+        contraindications,
+        doseValidation,
+        guidelines,
+        overallRisk
+      };
+
+      // Create alert if high risk
+      if (overallRisk.level === 'high') {
+        await alertService.createAlert({
+          patientId,
+          facilityId,
+          organizationId,
+          alertType: 'drug-interaction',
+          severity: 'critical',
+          priority: 'high',
+          message: 'High-risk medication combination detected',
+          clinicalContext: {
+            medications: medications.map((m: any) => m.name),
+            allergies,
+            conditions: conditions.map((c: any) => c.name),
+            findings: result
+          },
+          riskScore: overallRisk.score,
+          riskLevel: overallRisk.level,
+          recommendations: [
+            ...interactions.interactions.map((i: any) => i.recommendation),
+            ...allergyAlerts.alerts.map((a: any) => a.recommendation),
+            ...contraindications.contraindications.map((c: any) => c.recommendation)
+          ].filter((r, i, arr) => arr.indexOf(r) === i), // Remove duplicates
+          triggeredBy: userId
+        });
+      }
+
+      res.json({
+        success: true,
+        data: result,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error: any) {
+      logger.error('Medication check error:', error);
+      res.status(500).json({
+        success: false,
+        error: {
+          message: 'Failed to complete medication safety check',
+          details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        },
         timestamp: new Date().toISOString()
       });
     }
-    
-    res.json({
-      success: true,
-      data: result
-    });
-  } catch (error) {
-    logger.error('Medication check error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to check medication'
-    });
   }
-});
+);
 
 // Socket.IO for real-time clinical alerts
 io.use((socket, next) => {
@@ -253,29 +366,75 @@ io.on('connection', (socket) => {
   });
 });
 
-// Helper function to calculate overall risk
-function calculateOverallRisk(interactions: any, allergyAlerts: any, contraindications: any, doseValidation: any): any {
+/**
+ * Calculate overall risk score
+ * 
+ * Risk Scoring Algorithm (per documentation):
+ * - Drug Interactions: × 2 per interaction
+ * - Allergy Alerts: × 3 per allergy
+ * - Contraindications: × 4 per contraindication
+ * - Dose Errors: + 2 if errors exist
+ * 
+ * Risk Levels:
+ * - Low: < 5
+ * - Medium: 5-9
+ * - High: ≥ 10
+ */
+function calculateOverallRisk(
+  interactions: any,
+  allergyAlerts: any,
+  contraindications: any,
+  doseValidation: any
+): {
+  score: number;
+  level: 'low' | 'medium' | 'high';
+  factors: {
+    interactions: number;
+    allergies: number;
+    contraindications: number;
+    doseIssues: number;
+  };
+  blocksAdministration: boolean;
+} {
   let riskScore = 0;
-  let riskLevel = 'low';
   
-  // Calculate risk based on different factors
-  if (interactions.length > 0) riskScore += interactions.length * 2;
-  if (allergyAlerts.length > 0) riskScore += allergyAlerts.length * 3;
-  if (contraindications.length > 0) riskScore += contraindications.length * 4;
-  if (doseValidation.hasErrors) riskScore += 2;
-  
-  if (riskScore >= 10) riskLevel = 'high';
-  else if (riskScore >= 5) riskLevel = 'medium';
-  
+  // Calculate risk based on different factors (per documentation)
+  const interactionCount = interactions.interactions?.length || 0;
+  const allergyCount = allergyAlerts.alerts?.length || 0;
+  const contraindicationCount = contraindications.contraindications?.length || 0;
+  const doseErrors = doseValidation.hasErrors ? 1 : 0;
+
+  riskScore += interactionCount * 2;
+  riskScore += allergyCount * 3;
+  riskScore += contraindicationCount * 4;
+  riskScore += doseErrors * 2;
+
+  // Determine risk level
+  let riskLevel: 'low' | 'medium' | 'high';
+  if (riskScore >= 10) {
+    riskLevel = 'high';
+  } else if (riskScore >= 5) {
+    riskLevel = 'medium';
+  } else {
+    riskLevel = 'low';
+  }
+
+  // Check if any check blocks administration
+  const blocksAdministration = 
+    allergyAlerts.blocksAdministration ||
+    contraindications.blocksAdministration ||
+    interactions.highestSeverity === 'critical';
+
   return {
     score: riskScore,
     level: riskLevel,
     factors: {
-      interactions: interactions.length,
-      allergies: allergyAlerts.length,
-      contraindications: contraindications.length,
-      doseIssues: doseValidation.hasErrors ? 1 : 0
-    }
+      interactions: interactionCount,
+      allergies: allergyCount,
+      contraindications: contraindicationCount,
+      doseIssues: doseErrors
+    },
+    blocksAdministration
   };
 }
 
@@ -283,40 +442,98 @@ function calculateOverallRisk(interactions: any, allergyAlerts: any, contraindic
 app.use(errorHandler);
 
 // 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({
-    error: 'Route not found',
-    path: req.originalUrl,
-    method: req.method
-  });
-});
+app.use('*', notFoundHandler);
 
 // Setup event handlers
 setupEventHandlers(io, alertService);
 
+// ==================================================================
+// SERVICE INITIALIZATION
+// ==================================================================
+
+async function initializeService(): Promise<void> {
+  try {
+    logger.info('🚀 Initializing CDS Service...');
+    
+    // Test database connections
+    logger.info('📊 Connecting to databases...');
+    const dbStatus = await initializeDatabases();
+    
+    if (!dbStatus.postgresql) {
+      logger.warn('⚠️  PostgreSQL not connected - some features may not work');
+    }
+    if (!dbStatus.mongodb) {
+      logger.warn('⚠️  MongoDB not connected - guideline features may be limited');
+    }
+    if (!dbStatus.redis) {
+      logger.warn('⚠️  Redis not connected - caching disabled');
+    }
+    
+    // Mark as initialized
+    appInitialized = true;
+    logger.info('✅ CDS Service initialization complete');
+    
+  } catch (error: any) {
+    logger.error('❌ CDS Service initialization failed:', error.message);
+    throw error;
+  }
+}
+
 // Start server
-server.listen(PORT, () => {
-  logger.info(`Clinical Decision Support service running on port ${PORT}`);
-  logger.info(`API Documentation available at http://localhost:${PORT}/api-docs`);
-  logger.info(`Health check available at http://localhost:${PORT}/health`);
-  logger.info(`Features enabled: Drug Interactions, Allergy Alerts, Dose Validation, Clinical Guidelines`);
-});
+(async () => {
+  try {
+    // Initialize service
+    await initializeService();
+    
+    // Start HTTP server
+    server.listen(PORT, () => {
+      logger.info('╔═══════════════════════════════════════════════════╗');
+      logger.info('║   CLINICAL DECISION SUPPORT SERVICE STARTED       ║');
+      logger.info('╚═══════════════════════════════════════════════════╝');
+      logger.info(`✅ Service: cds-service`);
+      logger.info(`✅ Version: 1.0.0`);
+      logger.info(`✅ Port: ${PORT}`);
+      logger.info(`✅ Environment: ${process.env.NODE_ENV || 'development'}`);
+      logger.info(`✅ Started at: ${new Date().toISOString()}`);
+      logger.info(`✅ Health: http://localhost:${PORT}/health`);
+      logger.info(`✅ API Docs: http://localhost:${PORT}/api-docs`);
+      logger.info(`✅ Comprehensive Check: POST /api/v1/check-medication`);
+      logger.info('═══════════════════════════════════════════════════');
+      logger.info('Features: Drug Interactions | Allergy Alerts | Dose Validation | Contraindications | Guidelines');
+    });
+  } catch (error: any) {
+    logger.error('❌ Failed to start CDS service:', error.message);
+    process.exit(1);
+  }
+})();
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
-  logger.info('SIGTERM received, shutting down gracefully');
-  server.close(() => {
-    logger.info('Process terminated');
+const shutdown = async (signal: string) => {
+  logger.info(`${signal} received, shutting down gracefully`);
+  
+  server.close(async () => {
+    logger.info('HTTP server closed');
+    
+    // Close database connections
+    await closeDatabases();
+    
+    // Close Socket.IO
+    io.close(() => {
+      logger.info('✅ Socket.IO closed');
+    });
+    
+    logger.info('✅ CDS service shut down successfully');
     process.exit(0);
   });
-});
+  
+  // Force shutdown after 30 seconds
+  setTimeout(() => {
+    logger.error('⚠️  Forced shutdown after timeout');
+    process.exit(1);
+  }, 30000);
+};
 
-process.on('SIGINT', () => {
-  logger.info('SIGINT received, shutting down gracefully');
-  server.close(() => {
-    logger.info('Process terminated');
-    process.exit(0);
-  });
-});
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
 
 export { app, server, io };

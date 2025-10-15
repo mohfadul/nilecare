@@ -15,7 +15,8 @@ import cacheResponseDirective from 'express-cache-response-directive';
 import { logger } from './utils/logger';
 import { errorHandler } from './middleware/errorHandler';
 import { rateLimiter } from './middleware/rateLimiter';
-import { authMiddleware } from './middleware/auth';
+// ✅ MIGRATED: Using shared authentication middleware (centralized auth)
+import { authenticate as authMiddleware } from '../../shared/middleware/auth';
 import { requestLogger } from './middleware/requestLogger';
 import { responseTransformer } from './middleware/responseTransformer';
 import { corsMiddleware } from './middleware/cors';

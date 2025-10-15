@@ -1,0 +1,109 @@
+version: '3.8'
+
+services:
+  auth-service:
+    build: .
+    container_name: nilecare-auth-service
+    ports:
+      - "${PORT:-7020}:${PORT:-7020}"
+    environment:
+      # Server Configuration
+      - NODE_ENV=${NODE_ENV:-production}
+      - PORT=${PORT:-7020}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      
+      # Database Configuration (MySQL) - Uses non-root user
+      - DB_HOST=${DB_HOST:-mysql}
+      - DB_PORT=${DB_PORT:-3306}
+      - DB_NAME=${DB_NAME:-nilecare_auth}
+      - DB_USER=${DB_USER:-nilecare_user}
+      - DB_PASSWORD=${DB_PASSWORD}
+      
+      # Redis Configuration
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      
+      # JWT Configuration (Must be set in .env file!)
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - JWT_ISSUER=${JWT_ISSUER:-nilecare-auth}
+      - JWT_AUDIENCE=${JWT_AUDIENCE:-nilecare-api}
+      
+      # Session Configuration
+      - SESSION_SECRET=${SESSION_SECRET}
+      
+      # MFA Configuration
+      - MFA_ENCRYPTION_KEY=${MFA_ENCRYPTION_KEY}
+      
+      # Client Configuration
+      - CLIENT_URL=${CLIENT_URL:-http://localhost:5173}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - nilecare-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:${PORT:-7020}/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # MySQL 8.0 with secure configuration
+  mysql:
+    image: mysql:8.0
+    container_name: nilecare-mysql
+    environment:
+      # Root password (for administrative tasks only)
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+      # Application database
+      - MYSQL_DATABASE=${DB_NAME:-nilecare_auth}
+      # Application user (non-root) with limited privileges
+      - MYSQL_USER=${DB_USER:-nilecare_user}
+      - MYSQL_PASSWORD=${DB_PASSWORD}
+    ports:
+      - "${DB_PORT:-3306}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      # Schema initialization scripts (run in alphabetical order)
+      - ./create-mysql-tables.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./migrations:/docker-entrypoint-initdb.d/migrations
+    networks:
+      - nilecare-network
+    restart: unless-stopped
+    command: 
+      - --default-authentication-plugin=mysql_native_password
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --max_connections=200
+      - --innodb_buffer_pool_size=256M
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "${DB_USER:-nilecare_user}", "-p${DB_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: nilecare-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - nilecare-network
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+
+volumes:
+  mysql-data:
+    driver: local
+  redis-data:
+    driver: local
+
+networks:
+  nilecare-network:
+    driver: bridge
+

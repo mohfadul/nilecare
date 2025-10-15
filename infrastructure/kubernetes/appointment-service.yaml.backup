@@ -1,0 +1,138 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: appointment-service
+  namespace: nilecare
+  labels:
+    app: appointment-service
+    tier: business
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: appointment-service
+  template:
+    metadata:
+      labels:
+        app: appointment-service
+        tier: business
+    spec:
+      containers:
+      - name: appointment-service
+        image: nilecare/appointment-service:latest
+        ports:
+        - containerPort: 5002
+        env:
+        - name: PORT
+          value: "5002"
+        - name: NODE_ENV
+          valueFrom:
+            configMapKeyRef:
+              name: nilecare-config
+              key: NODE_ENV
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: nilecare-secrets
+              key: DATABASE_URL
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: nilecare-secrets
+              key: REDIS_URL
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: nilecare-secrets
+              key: JWT_SECRET
+        - name: ALLOWED_ORIGINS
+          valueFrom:
+            configMapKeyRef:
+              name: nilecare-config
+              key: ALLOWED_ORIGINS
+        - name: KAFKA_BROKERS
+          valueFrom:
+            configMapKeyRef:
+              name: nilecare-config
+              key: KAFKA_BROKERS
+        - name: NOTIFICATION_SERVICE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: nilecare-config
+              key: NOTIFICATION_SERVICE_URL
+        - name: FACILITY_SERVICE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: nilecare-config
+              key: FACILITY_SERVICE_URL
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5002
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5002
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        volumeMounts:
+        - name: config-volume
+          mountPath: /app/config
+          readOnly: true
+      volumes:
+      - name: config-volume
+        configMap:
+          name: nilecare-config
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: appointment-service
+  namespace: nilecare
+  labels:
+    app: appointment-service
+    tier: business
+spec:
+  selector:
+    app: appointment-service
+  ports:
+  - port: 5002
+    targetPort: 5002
+    protocol: TCP
+  type: ClusterIP
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: appointment-service-hpa
+  namespace: nilecare
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: appointment-service
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80

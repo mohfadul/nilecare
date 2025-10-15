@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
   AppBar,
@@ -58,6 +58,7 @@ const DashboardLayout: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, logout, hasRole } = useAuth();
 
   const [drawerOpen, setDrawerOpen] = useState(!isMobile);

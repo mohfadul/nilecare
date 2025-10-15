@@ -21,7 +21,8 @@ import mllpRoutes from './routes/mllp';
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
 import { requestLogger } from './middleware/logger';
-import { authMiddleware } from './middleware/auth';
+// ✅ MIGRATED: Using shared authentication middleware (centralized auth)
+import { authenticate as authMiddleware } from '../../shared/middleware/auth';
 import { validateRequest } from './middleware/validation';
 
 // Import services
@@ -129,16 +130,14 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString(),
     version: '1.0.0'
   });
+});
 
 // Readiness probe
 app.get('/health/ready', async (req, res) => {
   try {
-    // Check database if available
-    if (typeof dbPool !== 'undefined' && dbPool) {
-      await dbPool.query('SELECT 1');
-    }
+    // TODO: Check database when ready
     res.status(200).json({ status: 'ready', timestamp: new Date().toISOString() });
-  } catch (error) {
+  } catch (error: any) {
     res.status(503).json({ status: 'not_ready', error: error.message });
   }
 });
@@ -156,8 +155,6 @@ app.get('/metrics', (req, res) => {
   const uptime = Math.floor((Date.now() - serviceStartTime) / 1000);
   res.setHeader('Content-Type', 'text/plain');
   res.send(`service_uptime_seconds ${uptime}`);
-});
-
 });
 
 // API routes

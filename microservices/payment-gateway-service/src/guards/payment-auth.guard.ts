@@ -14,7 +14,11 @@ export interface JWTPayload {
 }
 
 /**
- * Authentication guard middleware
+ * @deprecated Use shared authenticate middleware instead
+ * @see shared/middleware/auth.ts
+ * 
+ * This guard is DEPRECATED. Import from shared middleware:
+ * import { authenticate } from '../../../shared/middleware/auth';
  */
 export const authGuard = (req: Request, res: Response, next: NextFunction): void => {
   try {

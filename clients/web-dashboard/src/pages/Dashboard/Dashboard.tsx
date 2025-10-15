@@ -28,7 +28,7 @@ import {
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 
 import { useAuth } from '../../contexts/AuthContext';
-import { useSocket } from '../../contexts/SocketContext';
+// import { useSocket } from '../../contexts/SocketContext'; // TODO: Implement socket context
 
 // Mock data - in real app, this would come from API
 const mockDashboardData = {
@@ -102,33 +102,32 @@ const StatCard: React.FC<{
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
-  const { socket } = useSocket();
+  // const { socket } = useSocket(); // TODO: Enable when socket context is ready
   const [dashboardData, setDashboardData] = useState(mockDashboardData);
 
   useEffect(() => {
-    // Subscribe to real-time updates
-    if (socket) {
-      socket.on('dashboard:update', (data) => {
-        setDashboardData(prev => ({
-          ...prev,
-          stats: { ...prev.stats, ...data.stats }
-        }));
-      });
+    // TODO: Subscribe to real-time updates when socket is ready
+    // if (socket) {
+    //   socket.on('dashboard:update', (data) => {
+    //     setDashboardData(prev => ({
+    //       ...prev,
+    //       stats: { ...prev.stats, ...data.stats }
+    //     }));
+    //   });
 
-      socket.on('appointment:created', (data) => {
-        // Update recent activity
-        setDashboardData(prev => ({
-          ...prev,
-          recentActivity: [data, ...prev.recentActivity.slice(0, 3)]
-        }));
-      });
+    //   socket.on('appointment:created', (data) => {
+    //     setDashboardData(prev => ({
+    //       ...prev,
+    //       recentActivity: [data, ...prev.recentActivity.slice(0, 3)]
+    //     }));
+    //   });
 
-      return () => {
-        socket.off('dashboard:update');
-        socket.off('appointment:created');
-      };
-    }
-  }, [socket]);
+    //   return () => {
+    //     socket.off('dashboard:update');
+    //     socket.off('appointment:created');
+    //   };
+    // }
+  }, []);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -153,10 +152,10 @@ const Dashboard: React.FC = () => {
       {/* Welcome Header */}
       <Box mb={3}>
         <Typography variant="h4" component="h1" gutterBottom>
-          Welcome back, {user?.firstName || 'User'}!
+          Welcome back, {user?.username || user?.email || 'User'}!
         </Typography>
         <Typography variant="body1" color="textSecondary">
-          Here's what's happening at your healthcare facility today.
+          Here's what's happening at your healthcare facility today. Role: {user?.role}
         </Typography>
       </Box>
 

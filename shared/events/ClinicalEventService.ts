@@ -127,8 +127,8 @@ export class ClinicalEventService extends EventEmitter {
       allowAutoTopicCreation: false,
       transactionalId: this.clientId,
       maxInFlightRequests: 5,
-      idempotent: true,
-      compression: CompressionTypes.GZIP
+      idempotent: true
+      // Note: compression is set per-message, not in producer config
     });
 
     this.initializeProducer();

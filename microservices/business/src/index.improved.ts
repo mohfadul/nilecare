@@ -55,7 +55,7 @@ const io = new Server(server, {
   }
 });
 
-const PORT = parseInt(process.env.PORT || '3005');
+const PORT = parseInt(process.env.PORT || '7010');
 let appInitialized = false;
 const serviceStartTime = Date.now();
 

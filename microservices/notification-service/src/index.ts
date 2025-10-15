@@ -13,7 +13,8 @@ import Queue from 'bull';
 import { logger } from './utils/logger';
 import { errorHandler } from './middleware/errorHandler';
 import { rateLimiter } from './middleware/rateLimiter';
-import { authMiddleware } from './middleware/auth';
+// ✅ MIGRATED: Using shared authentication middleware (centralized auth)
+import { authenticate as authMiddleware } from '../../shared/middleware/auth';
 import { validateRequest } from './middleware/validation';
 
 // Routes

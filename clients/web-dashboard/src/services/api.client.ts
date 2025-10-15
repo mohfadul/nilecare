@@ -24,8 +24,12 @@ class ApiClient {
   }> = [];
 
   constructor() {
+    // Use main-nilecare orchestrator (port 7000) as per NileCare documentation
+    // This is the single source of truth for all API requests
+    const baseURL = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000';
+    
     this.client = axios.create({
-      baseURL: process.env.REACT_APP_API_BASE_URL || 'http://localhost:3000',
+      baseURL,
       timeout: 30000,
       headers: {
         'Content-Type': 'application/json',
@@ -435,6 +439,164 @@ class ApiClient {
 
   async getBedStatus(facilityId: string): Promise<ApiResponse> {
     const response = await this.client.get(`/api/v1/facilities/${facilityId}/beds`);
+    return response.data;
+  }
+
+  // ============================================================================
+  // USER MANAGEMENT APIs
+  // ============================================================================
+
+  async getUsers(params?: { page?: number; limit?: number; search?: string }): Promise<ApiResponse> {
+    const response = await this.client.get('/api/v1/data/users/all', { params });
+    return response.data;
+  }
+
+  async getUser(userId: string): Promise<ApiResponse> {
+    const response = await this.client.get(`/api/v1/users/${userId}`);
+    return response.data;
+  }
+
+  async createUser(data: {
+    email: string;
+    password: string;
+    first_name: string;
+    last_name: string;
+    role: string;
+    phone?: string;
+    national_id?: string;
+    specialty?: string;
+  }): Promise<ApiResponse> {
+    const response = await this.client.post('/api/v1/users', data);
+    return response.data;
+  }
+
+  async updateUser(userId: string, data: any): Promise<ApiResponse> {
+    const response = await this.client.put(`/api/v1/users/${userId}`, data);
+    return response.data;
+  }
+
+  async deleteUser(userId: string): Promise<ApiResponse> {
+    const response = await this.client.delete(`/api/v1/users/${userId}`);
+    return response.data;
+  }
+
+  // ============================================================================
+  // APPOINTMENT STATUS APIs
+  // ============================================================================
+
+  async checkInAppointment(appointmentId: string): Promise<ApiResponse> {
+    const response = await this.client.patch(`/api/v1/appointments/${appointmentId}/status`, {
+      status: 'checked-in'
+    });
+    return response.data;
+  }
+
+  async completeAppointmentStatus(appointmentId: string): Promise<ApiResponse> {
+    const response = await this.client.patch(`/api/v1/appointments/${appointmentId}/status`, {
+      status: 'completed'
+    });
+    return response.data;
+  }
+
+  async noShowAppointment(appointmentId: string): Promise<ApiResponse> {
+    const response = await this.client.patch(`/api/v1/appointments/${appointmentId}/status`, {
+      status: 'no-show'
+    });
+    return response.data;
+  }
+
+  // ============================================================================
+  // BULK OPERATIONS APIs
+  // ============================================================================
+
+  async bulkDeletePatients(ids: string[]): Promise<ApiResponse> {
+    const response = await this.client.delete('/api/v1/bulk/patients', {
+      data: { ids }
+    });
+    return response.data;
+  }
+
+  async bulkDeleteAppointments(ids: string[]): Promise<ApiResponse> {
+    const response = await this.client.delete('/api/v1/bulk/appointments', {
+      data: { ids }
+    });
+    return response.data;
+  }
+
+  async bulkDeleteUsers(ids: string[]): Promise<ApiResponse> {
+    const response = await this.client.delete('/api/v1/bulk/users', {
+      data: { ids }
+    });
+    return response.data;
+  }
+
+  async bulkUpdateAppointmentStatus(ids: string[], status: string): Promise<ApiResponse> {
+    const response = await this.client.patch('/api/v1/bulk/appointments/status', {
+      ids,
+      status
+    });
+    return response.data;
+  }
+
+  async bulkUpdateUserStatus(ids: string[], status: 'active' | 'inactive'): Promise<ApiResponse> {
+    const response = await this.client.patch('/api/v1/bulk/users/status', {
+      ids,
+      status
+    });
+    return response.data;
+  }
+
+  // ============================================================================
+  // ADVANCED SEARCH APIs
+  // ============================================================================
+
+  async advancedSearchPatients(filters: {
+    searchTerm?: string;
+    gender?: string;
+    minAge?: number;
+    maxAge?: number;
+    bloodType?: string;
+    city?: string;
+    state?: string;
+    hasAllergies?: boolean;
+    hasMedicalConditions?: boolean;
+    dateFrom?: string;
+    dateTo?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<ApiResponse> {
+    const response = await this.client.post('/api/v1/search/patients', filters);
+    return response.data;
+  }
+
+  async advancedSearchAppointments(filters: {
+    searchTerm?: string;
+    patientId?: string;
+    providerId?: string;
+    status?: string;
+    statuses?: string[];
+    dateFrom?: string;
+    dateTo?: string;
+    duration?: number;
+    appointmentType?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<ApiResponse> {
+    const response = await this.client.post('/api/v1/search/appointments', filters);
+    return response.data;
+  }
+
+  async advancedSearchUsers(filters: {
+    searchTerm?: string;
+    role?: string;
+    roles?: string[];
+    status?: string;
+    specialty?: string;
+    department?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<ApiResponse> {
+    const response = await this.client.post('/api/v1/search/users', filters);
     return response.data;
   }
 }

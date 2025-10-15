@@ -1,11 +1,13 @@
 import { Router } from 'express';
-import { AppointmentController } from '../controllers/AppointmentController';
 import { validateRequest, schemas } from '../middleware/validation';
-import { requireRole, requirePermission } from '../middleware/auth';
+// ✅ MIGRATED: Now using local authentication middleware (copied from shared)
+import { authenticate, requireRole, requirePermission } from '../middleware/auth';
 import { asyncHandler } from '../middleware/errorHandler';
+import { AppointmentController } from '../controllers/AppointmentController';
 
-const router = Router();
-const appointmentController = new AppointmentController();
+// Factory function to create routes with controller injection
+export function createAppointmentRoutes(controller: AppointmentController) {
+  const router = Router();
 
 /**
  * @swagger
@@ -163,7 +165,7 @@ router.get(
   '/',
   requireRole(['doctor', 'nurse', 'admin', 'receptionist']),
   validateRequest({ query: schemas.pagination }),
-  asyncHandler(appointmentController.getAllAppointments)
+  asyncHandler(controller.getAllAppointments)
 );
 
 /**
@@ -205,7 +207,7 @@ router.get(
   '/:id',
   requireRole(['doctor', 'nurse', 'admin', 'receptionist']),
   validateRequest({ params: schemas.id }),
-  asyncHandler(appointmentController.getAppointmentById)
+  asyncHandler(controller.getAppointmentById)
 );
 
 /**
@@ -247,7 +249,7 @@ router.post(
   '/',
   requireRole(['doctor', 'nurse', 'admin', 'receptionist']),
   requirePermission('appointments:create'),
-  asyncHandler(appointmentController.createAppointment)
+  asyncHandler(controller.createAppointment)
 );
 
 /**
@@ -300,7 +302,7 @@ router.put(
   requireRole(['doctor', 'nurse', 'admin', 'receptionist']),
   requirePermission('appointments:update'),
   validateRequest({ params: schemas.id }),
-  asyncHandler(appointmentController.updateAppointment)
+  asyncHandler(controller.updateAppointment)
 );
 
 /**
@@ -355,7 +357,7 @@ router.delete(
   requireRole(['doctor', 'nurse', 'admin', 'receptionist']),
   requirePermission('appointments:cancel'),
   validateRequest({ params: schemas.id }),
-  asyncHandler(appointmentController.cancelAppointment)
+  asyncHandler(controller.cancelAppointment)
 );
 
 /**
@@ -402,7 +404,7 @@ router.patch(
   requireRole(['doctor', 'nurse', 'admin', 'receptionist']),
   requirePermission('appointments:confirm'),
   validateRequest({ params: schemas.id }),
-  asyncHandler(appointmentController.confirmAppointment)
+  asyncHandler(controller.confirmAppointment)
 );
 
 /**
@@ -466,7 +468,7 @@ router.patch(
   requireRole(['doctor', 'nurse']),
   requirePermission('appointments:complete'),
   validateRequest({ params: schemas.id }),
-  asyncHandler(appointmentController.completeAppointment)
+  asyncHandler(controller.completeAppointment)
 );
 
 /**
@@ -534,7 +536,8 @@ router.patch(
 router.get(
   '/availability',
   requireRole(['doctor', 'nurse', 'admin', 'receptionist']),
-  asyncHandler(appointmentController.getProviderAvailability)
+  asyncHandler(controller.getProviderAvailability)
 );
 
-export default router;
+  return router;
+}

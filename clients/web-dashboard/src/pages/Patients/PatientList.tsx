@@ -34,9 +34,16 @@ import {
   Visibility,
   Delete,
   PersonAdd,
+  FileDownload,
+  PictureAsPdf,
+  TableChart,
+  DeleteSweep,
+  FilterList,
 } from '@mui/icons-material';
 import { apiClient } from '../../services/api.client';
 import { useSnackbar } from 'notistack';
+import { exportPatientsToExcel, exportPatientsToPDF } from '../../utils/exportUtils';
+import PatientAdvancedSearch from '../../components/AdvancedSearch/PatientAdvancedSearch';
 
 interface Patient {
   id: string;
@@ -60,21 +67,36 @@ const PatientList: React.FC = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [totalCount, setTotalCount] = useState(0);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [advancedSearchOpen, setAdvancedSearchOpen] = useState(false);
+  const [activeFilters, setActiveFilters] = useState<any>(null);
 
   useEffect(() => {
     loadPatients();
-  }, [page, rowsPerPage, searchTerm]);
+  }, [page, rowsPerPage, searchTerm, activeFilters]);
 
   const loadPatients = async () => {
     try {
       setLoading(true);
       setError('');
 
-      const result = await apiClient.getPatients({
-        page: page + 1,
-        limit: rowsPerPage,
-        search: searchTerm || undefined,
-      });
+      let result;
+      
+      // Use advanced search if filters are active
+      if (activeFilters && Object.keys(activeFilters).length > 0) {
+        result = await apiClient.advancedSearchPatients({
+          ...activeFilters,
+          page: page + 1,
+          limit: rowsPerPage,
+        });
+      } else {
+        // Use simple search
+        result = await apiClient.getPatients({
+          page: page + 1,
+          limit: rowsPerPage,
+          search: searchTerm || undefined,
+        });
+      }
 
       if (result.success && result.data) {
         setPatients(result.data.patients || []);
@@ -117,6 +139,76 @@ const PatientList: React.FC = () => {
     }
   };
 
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setSelectedIds(patients.map(p => p.id));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const handleSelectOne = (id: string) => {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) {
+      enqueueSnackbar('Please select patients to delete', { variant: 'warning' });
+      return;
+    }
+
+    if (!window.confirm(`Delete ${selectedIds.length} selected patients?`)) {
+      return;
+    }
+
+    try {
+      const result = await apiClient.bulkDeletePatients(selectedIds);
+      if (result.success) {
+        enqueueSnackbar(`${selectedIds.length} patients deleted successfully`, { variant: 'success' });
+        setSelectedIds([]);
+        loadPatients();
+      }
+    } catch (err: any) {
+      enqueueSnackbar('Bulk delete failed', { variant: 'error' });
+    }
+  };
+
+  const handleExportExcel = () => {
+    const success = exportPatientsToExcel(patients);
+    if (success) {
+      enqueueSnackbar('Exported to Excel successfully', { variant: 'success' });
+    } else {
+      enqueueSnackbar('Export failed', { variant: 'error' });
+    }
+  };
+
+  const handleExportPDF = () => {
+    const success = exportPatientsToPDF(patients);
+    if (success) {
+      enqueueSnackbar('Exported to PDF successfully', { variant: 'success' });
+    } else {
+      enqueueSnackbar('Export failed', { variant: 'error' });
+    }
+  };
+
+  const handleAdvancedSearch = (filters: any) => {
+    setActiveFilters(filters);
+    setPage(0); // Reset to first page when applying filters
+    enqueueSnackbar(
+      `Applied ${Object.keys(filters).length} filter(s)`,
+      { variant: 'info' }
+    );
+  };
+
+  const handleClearFilters = () => {
+    setActiveFilters(null);
+    setSearchTerm('');
+    setPage(0);
+    enqueueSnackbar('Filters cleared', { variant: 'info' });
+  };
+
   const calculateAge = (dateOfBirth: string): number => {
     const today = new Date();
     const birthDate = new Date(dateOfBirth);
@@ -147,25 +239,52 @@ const PatientList: React.FC = () => {
         <Typography variant="h4" fontWeight="bold">
           Patients / المرضى
         </Typography>
-        <Button
-          variant="contained"
-          startIcon={<PersonAdd />}
-          onClick={() => navigate('/dashboard/patients/new')}
-          size="large"
-        >
-          Add Patient / إضافة مريض
-        </Button>
+        <Stack direction="row" spacing={1}>
+          {selectedIds.length > 0 && (
+            <Button
+              variant="outlined"
+              color="error"
+              startIcon={<DeleteSweep />}
+              onClick={handleBulkDelete}
+            >
+              Delete Selected ({selectedIds.length})
+            </Button>
+          )}
+          <Button
+            variant="outlined"
+            startIcon={<TableChart />}
+            onClick={handleExportExcel}
+          >
+            Export Excel
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<PictureAsPdf />}
+            onClick={handleExportPDF}
+          >
+            Export PDF
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<PersonAdd />}
+            onClick={() => navigate('/dashboard/patients/new')}
+            size="large"
+          >
+            Add Patient / إضافة مريض
+          </Button>
+        </Stack>
       </Box>
 
       {/* Search and Filters */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center">
             <TextField
               fullWidth
               placeholder="Search patients by name, ID, or phone..."
               value={searchTerm}
               onChange={handleSearch}
+              disabled={activeFilters !== null}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -174,7 +293,35 @@ const PatientList: React.FC = () => {
                 ),
               }}
             />
+            <Button
+              variant="outlined"
+              startIcon={<FilterList />}
+              onClick={() => setAdvancedSearchOpen(true)}
+              sx={{ minWidth: 180 }}
+            >
+              Advanced Search
+            </Button>
+            {activeFilters && (
+              <Button
+                variant="outlined"
+                color="secondary"
+                onClick={handleClearFilters}
+                sx={{ minWidth: 120 }}
+              >
+                Clear Filters
+              </Button>
+            )}
           </Stack>
+          {activeFilters && (
+            <Box sx={{ mt: 2 }}>
+              <Chip
+                label={`${Object.keys(activeFilters).length} filter(s) applied`}
+                color="primary"
+                onDelete={handleClearFilters}
+                size="small"
+              />
+            </Box>
+          )}
         </CardContent>
       </Card>
 
@@ -191,6 +338,14 @@ const PatientList: React.FC = () => {
           <Table>
             <TableHead>
               <TableRow>
+                <TableCell padding="checkbox">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.length === patients.length && patients.length > 0}
+                    onChange={handleSelectAll}
+                    style={{ cursor: 'pointer', width: 18, height: 18 }}
+                  />
+                </TableCell>
                 <TableCell><strong>ID</strong></TableCell>
                 <TableCell><strong>Name</strong></TableCell>
                 <TableCell><strong>Age</strong></TableCell>
@@ -203,13 +358,13 @@ const PatientList: React.FC = () => {
             <TableBody>
               {loading && patients.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
                     <CircularProgress />
                   </TableCell>
                 </TableRow>
               ) : patients.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
                     <Typography variant="body2" color="text.secondary">
                       No patients found. Click "Add Patient" to create one.
                     </Typography>
@@ -217,7 +372,19 @@ const PatientList: React.FC = () => {
                 </TableRow>
               ) : (
                 patients.map((patient) => (
-                  <TableRow key={patient.id} hover>
+                  <TableRow 
+                    key={patient.id} 
+                    hover 
+                    selected={selectedIds.includes(patient.id)}
+                  >
+                    <TableCell padding="checkbox">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(patient.id)}
+                        onChange={() => handleSelectOne(patient.id)}
+                        style={{ cursor: 'pointer', width: 18, height: 18 }}
+                      />
+                    </TableCell>
                     <TableCell>
                       <Typography variant="caption" fontFamily="monospace">
                         {patient.id.substring(0, 8)}...
@@ -292,6 +459,13 @@ const PatientList: React.FC = () => {
           rowsPerPageOptions={[5, 10, 25, 50]}
         />
       </Card>
+
+      {/* Advanced Search Dialog */}
+      <PatientAdvancedSearch
+        open={advancedSearchOpen}
+        onClose={() => setAdvancedSearchOpen(false)}
+        onSearch={handleAdvancedSearch}
+      />
     </Box>
   );
 };

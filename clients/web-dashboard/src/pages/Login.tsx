@@ -31,23 +31,35 @@ import { useAuth } from '../contexts/AuthContext';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, isAuthenticated, isLoading: authLoading } = useAuth();
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('doctor@nilecare.sd'); // Pre-fill for testing
+  const [password, setPassword] = useState('TestPass123!'); // Pre-fill for testing
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Redirect if already authenticated
+  React.useEffect(() => {
+    if (isAuthenticated && !authLoading) {
+      console.log('Already authenticated, redirecting to dashboard');
+      navigate('/dashboard', { replace: true });
+    }
+  }, [isAuthenticated, authLoading, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
+    console.log('Login attempt:', { email });
+
     try {
       await login(email, password);
-      navigate('/dashboard');
+      console.log('Login successful, navigating to dashboard');
+      navigate('/dashboard', { replace: true });
     } catch (err: any) {
+      console.error('Login error:', err);
       setError(err.message || 'Login failed. Please check your credentials.');
     } finally {
       setLoading(false);
@@ -174,16 +186,16 @@ const Login: React.FC = () => {
           {/* Demo Credentials */}
           <Box mt={3} p={2} bgcolor="grey.100" borderRadius={1}>
             <Typography variant="caption" fontWeight="bold" display="block" mb={0.5}>
-              Demo Credentials:
+              ✅ Demo Credentials (Pre-filled):
             </Typography>
             <Typography variant="caption" display="block">
-              Doctor: doctor@nilecare.sd / Password123!
+              Doctor: doctor@nilecare.sd / TestPass123!
             </Typography>
             <Typography variant="caption" display="block">
-              Nurse: nurse@nilecare.sd / Password123!
+              Nurse: nurse@nilecare.sd / TestPass123!
             </Typography>
             <Typography variant="caption" display="block">
-              Admin: admin@nilecare.sd / Password123!
+              Admin: admin@nilecare.sd / TestPass123!
             </Typography>
           </Box>
         </CardContent>

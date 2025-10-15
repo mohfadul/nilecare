@@ -1,3 +1,16 @@
+/**
+ * ⚠️ DEPRECATED: Clinical Service Authentication Middleware
+ * 
+ * This file is DEPRECATED. All authentication should use shared middleware.
+ * 
+ * @deprecated Since 2025-10-12
+ * @see shared/middleware/auth.ts
+ * 
+ * Migration Instructions:
+ *   OLD: import { authMiddleware, requireRole } from '../middleware/auth';
+ *   NEW: import { authenticate, requireRole } from '../../../shared/middleware/auth';
+ */
+
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { logger } from '../utils/logger';

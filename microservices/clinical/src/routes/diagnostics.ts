@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { DiagnosticController } from '../controllers/DiagnosticController';
 import { validateRequest, schemas } from '../middleware/validation';
-import { requireRole, requirePermission } from '../middleware/auth';
+// ✅ MIGRATED: Using shared authentication middleware
+import { authenticate, requireRole, requirePermission } from '../../../shared/middleware/auth';
 import { asyncHandler } from '../middleware/errorHandler';
 
 const router = Router();

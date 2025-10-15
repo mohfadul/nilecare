@@ -126,8 +126,8 @@ export class PHIAuditService extends EventEmitter {
     const accessLog: PHIAccessLog = {
       id: uuidv4(),
       timestamp: new Date(),
-      success: true,
-      ...access
+      ...access,
+      // success is already included in access parameter
     };
 
     try {

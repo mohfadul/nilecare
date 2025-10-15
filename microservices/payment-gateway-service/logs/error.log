@@ -1,0 +1,5 @@
+{"level":"error","message":"Body parser error: request aborted","method":"POST","name":"BadRequestError","path":"/login","timestamp":"2025-10-12T13:01:48.834Z"}
+{"level":"error","message":"Body parser error: request aborted","method":"POST","name":"BadRequestError","path":"/login","timestamp":"2025-10-12T13:01:48.848Z"}
+{"level":"error","message":"Body parser error: request aborted","method":"POST","name":"BadRequestError","path":"/login","timestamp":"2025-10-12T13:01:48.863Z"}
+{"level":"error","message":"Body parser error: request aborted","method":"POST","name":"BadRequestError","path":"/login","timestamp":"2025-10-12T13:02:39.314Z"}
+{"level":"error","message":"Body parser error: request aborted","method":"POST","name":"BadRequestError","path":"/login","timestamp":"2025-10-12T13:12:16.826Z"}

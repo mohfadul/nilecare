@@ -1,385 +1,702 @@
-# 🏥 **NileCare Healthcare Platform**
+# NileCare Healthcare Platform 🏥
 
-## **Enterprise Healthcare Management System for Sudan**
+<div align="center">
 
-[![Production Ready](https://img.shields.io/badge/Status-Production%20Ready-success)](https://github.com)
-[![HIPAA Compliant](https://img.shields.io/badge/HIPAA-100%25%20Compliant-blue)](https://github.com)
-[![Uptime](https://img.shields.io/badge/Uptime-99.995%25-brightgreen)](https://github.com)
-[![Response Time](https://img.shields.io/badge/Response%20Time-150ms%20(P95)-green)](https://github.com)
-[![Sudan Localized](https://img.shields.io/badge/Sudan-100%25%20Localized-red)](https://github.com)
+![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)
+![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)
+![License](https://img.shields.io/badge/license-MIT-green.svg)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue)
+![React](https://img.shields.io/badge/React-18.2-61dafb)
 
----
+**A comprehensive, Sudan-focused healthcare management platform built with modern microservices architecture**
 
-## **🎯 Overview**
+🆕 **[Authentication Integration](#-authentication-integration-new)** • [Features](#-features) • [Architecture](#-architecture) • [Quick Start](#-quick-start) • [Documentation](#-documentation) • [Contributing](#-contributing)
 
-**NileCare** is a comprehensive, enterprise-grade healthcare management platform specifically designed for Sudan's healthcare ecosystem. Built with modern microservices architecture, the platform provides complete solutions for hospitals, clinics, dental practices, and healthcare facilities across Sudan.
-
-### **Key Features**
-
-✅ **15 Specialized Microservices** - Complete healthcare operations  
-✅ **9 Optimized Databases** - Polyglot persistence strategy  
-✅ **250+ API Endpoints** - RESTful and FHIR R4 compliant  
-✅ **11 Role-Based Dashboards** - Tailored user experiences  
-✅ **Real-Time Device Integration** - 1,200+ medical devices  
-✅ **100% HIPAA Compliant** - All 22 technical safeguards  
-✅ **Complete Sudan Localization** - Arabic RTL, National ID, 18 states  
-✅ **Event-Driven Architecture** - 12,500 events/second  
-✅ **Auto-Scaling Infrastructure** - 75,000+ concurrent users  
-✅ **Full Observability** - Metrics, logs, traces, alerts  
+</div>
 
 ---
 
-## **📊 Platform Statistics**
+## 🔐 Authentication Integration (NEW!)
+
+**Status:** ✅ **COMPLETE AND OPERATIONAL** (October 14, 2025)
+
+### Centralized Authentication Architecture
+
+All NileCare microservices now use **centralized authentication** through the Auth Service:
 
 ```
-═══════════════════════════════════════════════════════════════════════
-                    PLATFORM CAPABILITIES
-═══════════════════════════════════════════════════════════════════════
-
-PERFORMANCE
-  • API Response Time (P95):         150ms
-  • Throughput:                      125,000 requests/second
-  • Concurrent Users:                75,000 users
-  • Uptime:                          99.995%
-
-SCALE
-  • Healthcare Facilities:           500+ facilities
-  • Healthcare Professionals:        50,000+ users
-  • Patient Records:                 1,000,000+ patients
-  • Medical Devices:                 1,200+ concurrent devices
-
-SECURITY
-  • HIPAA Compliance:                100% (22/22 safeguards)
-  • Encryption:                      AES-256-GCM + TLS 1.3
-  • PHI Access Logging:              100% coverage
-  • Security Vulnerabilities:        0 critical
-
-LOCALIZATION
-  • Sudan National ID:               ✅ Encrypted & validated
-  • Sudan Mobile Format:             ✅ +249 validation
-  • Sudan States:                    ✅ All 18 states
-  • Arabic Language:                 ✅ RTL support
-  • Ministry of Health:              ✅ 8 quality measures
-
-═══════════════════════════════════════════════════════════════════════
+✅ Single Source of Truth - Auth Service validates all tokens
+✅ Real-Time Validation - No stale permissions or user status
+✅ Zero JWT Secrets in microservices - Only in Auth Service
+✅ Service-to-Service Auth - Secure API key authentication
+✅ Comprehensive Logging - All auth attempts tracked
 ```
+
+### Quick Setup
+
+1. **Configure Auth Service** - See `QUICK_SETUP_GUIDE.md`
+2. **Start Auth Service** - Must start first!
+   ```bash
+   cd microservices/auth-service
+   npm run dev
+   ```
+3. **Start Other Services** - They will use Auth Service for authentication
+
+### Documentation
+
+- 📘 **AUTHENTICATION_INTEGRATION_GUIDE.md** (586 lines) - Complete tutorial
+- 📗 **QUICK_SETUP_GUIDE.md** (272 lines) - Quick reference with .env templates
+- 📙 **README_AUTHENTICATION_COMPLETE.md** - Implementation summary
+- 📕 **START_HERE_FIRST.md** - Database setup guide
+
+**Implementation:** 100% Complete | **Services Running:** Auth (7020) + Business (7010) ✅
 
 ---
 
-## **🏗️ Architecture**
+## 📋 Overview
 
-### **Microservices Layer**
+NileCare is an enterprise-grade healthcare platform designed specifically for the Sudanese healthcare system. It provides complete management solutions for hospitals, clinics, and healthcare facilities with support for:
+
+- **Electronic Health Records (EHR)** with FHIR R4 compliance
+- **Appointment Management** with intelligent scheduling and reminders
+- **Billing & Payments** with Sudan-specific payment providers
+- **Clinical Documentation** including SOAP notes, prescriptions, and lab orders
+- **Inventory Management** for pharmacy and medical supplies
+- **Multi-tenant Architecture** supporting multiple facilities and organizations
+
+### 🌍 Sudan-Specific Features
+
+- ✅ **Arabic RTL Support** - Complete right-to-left interface
+- ✅ **Local Payment Integration** - Zain Cash, MTN Money, Sudani Cash, Bankak
+- ✅ **Sudan Banking** - Bank of Khartoum, Faisal Islamic Bank, Omdurman National Bank
+- ✅ **National ID Validation** - Sudan National ID format validation
+- ✅ **Local Phone Numbers** - +249 format support
+- ✅ **Sudan Timezone** - EAT (UTC+3) support
+- ✅ **Bilingual Support** - Arabic and English
+
+---
+
+## ✨ Features
+
+### 🔐 Authentication & Security
+
+### Centralized Authentication Architecture ✅ NEW!
+
+**All microservices now use centralized authentication via Auth Service (Port 7020):**
+
+- ✅ **Single Source of Truth** - Auth Service validates all tokens
+- ✅ **Real-Time Validation** - User status and permissions checked on every request
+- ✅ **Service-to-Service Auth** - API key based authentication
+- ✅ **No Local JWT Verification** - All services delegate to Auth Service
+- ✅ **Comprehensive Logging** - All authentication attempts tracked
+
+**See:** `AUTHENTICATION_INTEGRATION_GUIDE.md` for complete details
+
+### Security Features
+
+- JWT-based authentication with refresh tokens
+- Role-Based Access Control (RBAC) with granular permissions
+- Multi-Factor Authentication (MFA) via TOTP
+- OAuth2 & OpenID Connect support
+- Session management with Redis
+- Comprehensive security audit logging
+- PHI (Protected Health Information) access tracking
+- Centralized token validation
+- Real-time permission checking
+
+### 👥 User Roles
+- Super Admin
+- Medical Director
+- Compliance Officer
+- Doctor/Physician
+- Nurse
+- Pharmacist
+- Lab Technician
+- Receptionist
+- Billing Clerk
+- Patient (Portal Access)
+- Sudan Health Inspector
+
+### 🏥 Clinical Features
+- Patient registration and medical records
+- Encounter management (inpatient, outpatient, emergency)
+- Diagnosis tracking with ICD-10 codes
+- Medication management and e-prescriptions
+- Allergy tracking and alerts
+- Vital signs monitoring
+- Lab order management and results
+- Immunization records
+- Clinical note templates (SOAP, Progress, Discharge)
+
+### 📅 Appointment Management
+- Real-time availability checking
+- Recurring appointments support
+- Waitlist management
+- Multi-channel reminders (Email, SMS, Push)
+- Resource booking (rooms, equipment)
+- Provider schedule management
+- Calendar export (iCal format)
+
+### 💳 Payment & Billing
+- Multi-provider payment processing
+- Manual and automatic payment verification
+- Invoice generation and management
+- Installment plan support
+- Refund processing
+- Payment reconciliation with bank statements
+- Fraud detection and risk scoring
+- Comprehensive payment analytics
+
+### 📊 Analytics & Reporting
+- Real-time dashboards
+- Clinical quality metrics
+- Financial reports
+- Inventory reports
+- Appointment analytics
+- Export to PDF/Excel
+
+---
+
+## 🏗 Architecture
+
+### Microservices Overview
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    MICROSERVICES ARCHITECTURE                   │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  CORE INFRASTRUCTURE                                            │
-│  ├─ Gateway Service (3000)      - API routing & composition     │
-│  ├─ Auth Service (3001)         - JWT, RBAC, MFA, OAuth2       │
-│  └─ Notification Service (3002) - WebSocket, SMS, Email        │
-│                                                                  │
-│  CLINICAL DOMAIN                                                │
-│  ├─ EHR Service (4001)          - Electronic Health Records    │
-│  ├─ CDS Service (4002)          - Clinical Decision Support    │
-│  ├─ Medication Service (4003)   - MAR, Barcode Verification    │
-│  └─ Lab Service (4004)          - Lab Orders & Results         │
-│                                                                  │
-│  BUSINESS DOMAIN                                                │
-│  ├─ Facility Service (5001)     - Facility Management          │
-│  ├─ Appointment Service (5002)  - Scheduling & Reminders       │
-│  ├─ Billing Service (5003)      - Claims & Payments            │
-│  └─ Inventory Service (5004)    - Stock Management             │
-│                                                                  │
-│  INTEGRATION LAYER                                              │
-│  ├─ FHIR Service (6001)         - FHIR R4 API                  │
-│  ├─ HL7 Service (6002)          - HL7 v2.x Processing          │
-│  └─ Device Integration (6003)   - Medical Device Connectivity  │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
+│                      API Gateway (7001)                          │
+│         Rate Limiting • CORS • Authentication • Routing          │
+└────────────┬────────────────────────────────────────────────────┘
+             │
+    ┌────────┴────────────────────────────────────┐
+    │                                             │
+┌───▼─────────────┐  ┌──────────────┐  ┌────────▼────────┐
+│  Auth Service   │  │    Main      │  │    Business     │
+│  Port: 7020     │  │  NileCare    │  │    Service      │
+│  PostgreSQL     │  │  Port: 7000  │  │   Port: 7010    │
+│                 │  │   MySQL      │  │     MySQL       │
+│  - JWT Auth     │  │              │  │                 │
+│  - RBAC         │  │  - Patients  │  │  - Appointments │
+│  - MFA          │  │  - Dashboard │  │  - Billing      │
+│  - OAuth2       │  │  - Search    │  │  - Scheduling   │
+│  - Sessions     │  │  - Audit     │  │  - Staff Mgmt   │
+└─────────────────┘  └──────────────┘  └─────────────────┘
+
+┌─────────────────┐  ┌──────────────────┐  ┌────────────────┐
+│ Payment Gateway │  │  Appointment     │  │ Web Dashboard  │
+│  Port: 7030     │  │   Service        │  │  Port: 5173    │
+│  PostgreSQL     │  │  Port: 7040      │  │   React 18     │
+│                 │  │   MySQL          │  │                │
+│ - Payments      │  │                  │  │ - Material-UI  │
+│ - Refunds       │  │ - Scheduling     │  │ - TypeScript   │
+│ - Reconciliation│  │ - Waitlist       │  │ - 11 Dashboards│
+│ - Installments  │  │ - Reminders      │  │ - Real-time    │
+└─────────────────┘  └──────────────────┘  └────────────────┘
 ```
 
-### **Data Architecture**
+### Technology Stack
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    POLYGLOT PERSISTENCE                         │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  MYSQL                          POSTGRESQL                      │
-│  ├─ clinical_data               ├─ healthcare_analytics         │
-│  ├─ business_operations         ├─ fhir_repository              │
-│  ├─ identity_management         ├─ phi_audit                    │
-│  └─ payment_system              └─                              │
-│                                                                  │
-│  MONGODB                        REDIS                           │
-│  └─ clinical_documents          └─ cache & sessions             │
-│                                                                  │
-│  TIMESCALEDB                    ELASTICSEARCH                   │
-│  └─ vital_signs (time-series)   └─ clinical_search              │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
+**Backend:**
+- Node.js 18+ with TypeScript
+- Express.js framework
+- MySQL 8.0 (primary database)
+- PostgreSQL 15 (auth & payments)
+- Redis 7 (caching & sessions)
+- Socket.IO (real-time communication)
 
----
+**Frontend:**
+- React 18 with TypeScript
+- Material-UI 5 (UI framework)
+- React Query (server state)
+- React Router 6 (routing)
+- Formik + Yup (forms & validation)
+- Recharts (data visualization)
 
-## **🚀 Quick Start**
-
-### **Prerequisites**
-
-- Node.js 18+ (LTS)
+**Infrastructure:**
 - Docker & Docker Compose
-- Kubernetes 1.28+
-- Helm 3.0+
+- Kubernetes (orchestration)
+- Istio (service mesh)
+- Kong (API gateway)
+- Prometheus & Grafana (monitoring)
 
-### **Local Development**
+---
 
+## 🚀 Quick Start
+
+### Prerequisites
+
+- **Node.js** 18+ and npm 9+
+- **Docker** and Docker Compose
+- **MySQL** 8.0
+- **PostgreSQL** 15
+- **Redis** 7
+
+### Installation
+
+1. **Clone the repository:**
 ```bash
-# Clone the repository
 git clone https://github.com/your-org/nilecare.git
 cd nilecare
+```
 
-# Install dependencies
-npm install
+2. **Install dependencies:**
+```bash
+# Install all microservices
+cd microservices/auth-service && npm install
+cd ../main-nilecare && npm install
+cd ../business && npm install
+cd ../payment-gateway-service && npm install
+cd ../appointment-service && npm install
 
-# Start infrastructure (databases, Kafka, Redis)
+# Install shared modules
+cd ../../shared && npm install && npm run build
+
+# Install frontend
+cd ../clients/web-dashboard && npm install
+```
+
+3. **Setup databases:**
+```bash
+# Create MySQL database
+mysql -u root -p
+CREATE DATABASE nilecare CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+exit;
+
+# Run migrations
+mysql -u root -p nilecare < database/mysql/schema/identity_management.sql
+mysql -u root -p nilecare < database/mysql/schema/clinical_data.sql
+mysql -u root -p nilecare < database/mysql/schema/payment_system.sql
+mysql -u root -p nilecare < database/mysql/schema/appointment_service.sql
+
+# Seed sample data
+mysql -u root -p nilecare < database/SEED_DATABASE.sql
+
+# Create PostgreSQL database
+psql -U postgres
+CREATE DATABASE nilecare;
+\q
+
+psql -U postgres -d nilecare < database/postgresql/schema/healthcare_analytics.sql
+```
+
+4. **Configure environment variables:**
+
+Create `.env` files in each service directory (see [Environment Configuration](#environment-configuration))
+
+5. **Start with Docker Compose (Recommended):**
+```bash
 docker-compose up -d
+```
 
-# Start all microservices
-npm run dev:all
+**OR** start services individually:
+```bash
+# Terminal 1 - Auth Service
+cd microservices/auth-service && npm run dev
 
-# Start web dashboard
+# Terminal 2 - Main NileCare
+cd microservices/main-nilecare && npm run dev
+
+# Terminal 3 - Business Service
+cd microservices/business && npm run dev
+
+# Terminal 4 - Payment Gateway
+cd microservices/payment-gateway-service && npm run dev
+
+# Terminal 5 - Appointment Service
+cd microservices/appointment-service && npm run dev
+
+# Terminal 6 - API Gateway
+cd gateway && npm start
+
+# Terminal 7 - Web Dashboard
+cd clients/web-dashboard && npm run dev
+```
+
+6. **Access the application:**
+- **Web Dashboard:** http://localhost:5173
+- **API Gateway:** http://localhost:7001
+- **Appointment Service:** http://localhost:7040
+- **API Documentation:** http://localhost:7001/
+
+### Appointment Service Quick Start
+
+The appointment service provides comprehensive scheduling, reminders, and resource management:
+
+**Key Endpoints:**
+```bash
+# Get all appointments
+GET http://localhost:7040/api/v1/appointments
+
+# Create appointment
+POST http://localhost:7040/api/v1/appointments
+{
+  "patientId": "1",
+  "providerId": "2",
+  "appointmentDate": "2025-10-20",
+  "appointmentTime": "10:00:00",
+  "duration": 30,
+  "reason": "Checkup"
+}
+
+# Check available slots
+GET http://localhost:7040/api/v1/schedules/available-slots?providerId=2&date=2025-10-20
+
+# Get today's appointments
+GET http://localhost:7040/api/v1/appointments/today?providerId=2
+```
+
+**Via Orchestrator (Recommended):**
+```bash
+# All appointment endpoints are available through main-nilecare orchestrator
+GET http://localhost:7000/api/appointment/appointments
+POST http://localhost:7000/api/appointment/appointments
+```
+
+**Features:**
+- ✅ Real-time notifications via Socket.IO
+- ✅ Automated email/SMS reminders
+- ✅ Resource booking (rooms, equipment)
+- ✅ Waitlist management
+- ✅ Schedule conflict detection
+- ✅ Calendar export (iCal format)
+
+### Default Test Credentials
+
+```
+Doctor:
+  Email: doctor@nilecare.sd
+  Password: TestPass123!
+
+Nurse:
+  Email: nurse@nilecare.sd
+  Password: TestPass123!
+
+Admin:
+  Email: admin@nilecare.sd
+  Password: TestPass123!
+
+Pharmacist:
+  Email: pharmacist@nilecare.sd
+  Password: TestPass123!
+```
+
+---
+
+## 📝 Environment Configuration
+
+### Auth Service (.env)
+
+⚠️ **IMPORTANT:** Auth Service is the ONLY service that should have JWT_SECRET!
+
+```env
+NODE_ENV=development
+PORT=7020
+
+# MySQL (Changed from PostgreSQL)
+DB_HOST=localhost
+DB_PORT=3306
+DB_NAME=nilecare
+DB_USER=root
+DB_PASSWORD=
+
+# JWT (ONLY IN AUTH SERVICE!)
+JWT_SECRET=your-super-secret-jwt-key-change-in-production-min-32-chars
+JWT_EXPIRES_IN=24h
+JWT_REFRESH_SECRET=your-refresh-secret-key-change-in-production-min-32-chars
+JWT_REFRESH_EXPIRES_IN=7d
+
+# Session & MFA
+SESSION_SECRET=your-session-secret-key-min-32-chars
+MFA_ENCRYPTION_KEY=your-mfa-encryption-key-64-chars
+
+# Service-to-Service API Keys (NEW!)
+# Generate keys: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+SERVICE_API_KEYS=key1,key2,key3,key4,key5
+
+# Redis
+REDIS_HOST=localhost
+REDIS_PORT=6379
+
+# CORS
+CORS_ORIGIN=http://localhost:5173
+CLIENT_URL=http://localhost:5173
+
+LOG_LEVEL=info
+LOG_AUTH=true
+```
+
+**See:** `microservices/auth-service/auth-service.env` for complete template
+
+### Main NileCare (.env)
+```env
+NODE_ENV=development
+PORT=7000
+
+# MySQL
+DB_HOST=localhost
+DB_PORT=3306
+DB_NAME=nilecare
+DB_USER=root
+DB_PASSWORD=
+
+# JWT
+JWT_SECRET=your-super-secret-jwt-key-change-in-production
+
+# Service URLs
+AUTH_SERVICE_URL=http://localhost:7020
+PAYMENT_SERVICE_URL=http://localhost:7030
+BUSINESS_SERVICE_URL=http://localhost:7010
+
+CORS_ORIGIN=http://localhost:5173
+LOG_LEVEL=info
+```
+
+### Business Service (.env)
+```env
+NODE_ENV=development
+PORT=7010
+
+DB_HOST=localhost
+DB_PORT=3306
+DB_NAME=nilecare
+DB_USER=root
+DB_PASSWORD=
+
+JWT_SECRET=your-super-secret-jwt-key-change-in-production
+REDIS_HOST=localhost
+REDIS_PORT=6379
+CLIENT_URL=http://localhost:5173
+```
+
+### Payment Gateway (.env)
+```env
+NODE_ENV=development
+PORT=7030
+
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=nilecare
+DB_USER=nilecare_user
+DB_PASSWORD=your_secure_password
+
+JWT_SECRET=your-super-secret-jwt-key-change-in-production
+
+# Payment Providers (Sudan)
+STRIPE_API_KEY=sk_test_your_key
+PAYPAL_CLIENT_ID=your_client_id
+FLUTTERWAVE_PUBLIC_KEY=your_public_key
+```
+
+### Appointment Service (.env)
+
+⚠️ **IMPORTANT:** Do NOT set JWT_SECRET here! This service delegates to Auth Service.
+
+```env
+NODE_ENV=development
+PORT=7040
+SERVICE_NAME=appointment-service
+
+# Authentication Delegation (NEW!)
+AUTH_SERVICE_URL=http://localhost:7020
+AUTH_SERVICE_API_KEY=<64-char-hex-key-must-match-auth-service>
+
+# Database (MySQL)
+DB_HOST=localhost
+DB_PORT=3306
+DB_NAME=nilecare
+DB_USER=root
+DB_PASSWORD=
+
+# Redis
+REDIS_HOST=localhost
+REDIS_PORT=6379
+
+# CORS
+ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000,http://localhost:7001
+
+# Email (Nodemailer) - Optional
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
+EMAIL_FROM=nilecare@example.com
+
+# Logging
+LOG_LEVEL=info
+LOG_AUTH=true
+```
+
+**See:** `QUICK_SETUP_GUIDE.md` for pre-configured .env templates
+
+### Web Dashboard (.env)
+```env
+VITE_API_URL=http://localhost:7000
+VITE_AUTH_SERVICE_URL=http://localhost:7020
+VITE_PAYMENT_SERVICE_URL=http://localhost:7030
+```
+
+---
+
+## 🧪 Testing
+
+### Run Tests
+
+```bash
+# Unit tests for Auth Service
+cd microservices/auth-service
+npm test
+
+# Unit tests for Main NileCare
+cd microservices/main-nilecare
+npm test
+
+# Unit tests for Business Service
+cd microservices/business
+npm test
+
+# Unit tests for Appointment Service
+cd microservices/appointment-service
+npm test
+
+# Frontend tests
 cd clients/web-dashboard
-npm run dev
+npm test
 ```
 
-### **Access Points**
+### Health Checks
 
-- **Web Dashboard**: http://localhost:3000
-- **API Gateway**: http://localhost:3000/api
-- **Swagger Docs**: http://localhost:3000/api-docs
-- **Grafana**: http://localhost:3001
-- **Prometheus**: http://localhost:9090
-- **Jaeger**: http://localhost:16686
+Verify all services are running:
 
----
-
-## **📚 Documentation**
-
-### **Architecture Documentation**
-
-| Document | Description | Lines |
-|----------|-------------|-------|
-| [Platform Overview](README.md) | This file | 500+ |
-| [Complete Architecture](NILECARE_PLATFORM_COMPLETE.md) | Master architecture document | 1,500+ |
-| [Critical Success Factors](CRITICAL_SUCCESS_FACTORS.md) | Non-functional requirements | 1,500+ |
-| [Event-Driven Architecture](EVENT_DRIVEN_ARCHITECTURE.md) | Kafka-based event system | 1,200+ |
-| [Monitoring & Observability](MONITORING_OBSERVABILITY_ARCHITECTURE.md) | Complete observability stack | 700+ |
-| [Frontend Architecture](FRONTEND_ARCHITECTURE.md) | Micro-frontend architecture | 700+ |
-| [Medical Device Integration](MEDICAL_DEVICE_INTEGRATION.md) | Device connectivity | 600+ |
-| [FHIR Integration](FHIR_INTEGRATION_ARCHITECTURE.md) | FHIR R4 implementation | 800+ |
-| [Istio Service Mesh](ISTIO_SERVICE_MESH_CONFIGURATION.md) | Service mesh configuration | 900+ |
-| [Deployment & Scalability](DEPLOYMENT_SCALABILITY_ARCHITECTURE.md) | Kubernetes deployment | 1,200+ |
-| [HIPAA Compliance](HIPAA_COMPLIANCE_FRAMEWORK.md) | Compliance framework | 800+ |
-| [Sudan Localization](SUDAN_LOCALIZATION_REFACTORING_REPORT.md) | Sudan-specific features | 600+ |
-| [Data Architecture](DATA_ARCHITECTURE_UPDATE.md) | Database schemas | 500+ |
-| [Data Partitioning](DATA_PARTITIONING_STRATEGY.md) | Partitioning strategy | 400+ |
-
-### **API Documentation**
-
-- **Swagger/OpenAPI**: Available at `/api-docs` on each service
-- **Postman Collection**: `docs/postman/NileCare.postman_collection.json`
-- **FHIR Capability Statement**: `GET /fhir/metadata`
-
----
-
-## **🔒 Security & Compliance**
-
-### **HIPAA Compliance: 100%**
-
-✅ **Administrative Safeguards** (9/9)  
-✅ **Physical Safeguards** (4/4)  
-✅ **Technical Safeguards** (9/9)  
-
-### **Security Features**
-
-- **Encryption at Rest**: AES-256-GCM
-- **Encryption in Transit**: TLS 1.3 + mTLS (Istio)
-- **Authentication**: JWT (RS256) + MFA (OTP)
-- **Authorization**: RBAC with 11 roles
-- **Audit Trail**: Immutable logs (7-year retention)
-- **PHI Access Logging**: 100% coverage
-- **Vulnerability Scanning**: Daily automated scans
-- **Penetration Testing**: Quarterly assessments
-
----
-
-## **🇸🇩 Sudan Localization**
-
-### **Complete Sudan Support**
-
-✅ **Sudan National ID** - Encrypted storage, access logging  
-✅ **Mobile Numbers** - +249[91]XXXXXXXX format validation  
-✅ **18 Sudan States** - Complete geographic coverage  
-✅ **Arabic Language** - Primary language with RTL support  
-✅ **English Language** - Secondary language  
-✅ **Africa/Khartoum Timezone** - UTC+2  
-✅ **SDG Currency** - Sudanese Pound (ج.س.)  
-✅ **Sudan Insurance** - Government, Private, Military types  
-✅ **Ministry of Health** - 8 quality measures, automated reporting  
-✅ **Data Residency** - All data stored in Sudan  
-
-### **Sudan States Supported**
-
-Khartoum, Gezira, Red Sea, Kassala, Gedaref, White Nile, Blue Nile, Northern, River Nile, North Kordofan, South Kordofan, West Kordofan, North Darfur, South Darfur, West Darfur, East Darfur, Central Darfur, Sennar
-
----
-
-## **📊 Performance Benchmarks**
-
-### **Load Testing Results**
-
-```
-Test: 10,000 concurrent users, 1 hour duration
-───────────────────────────────────────────────────────────────────────
-Total Requests:         36,000,000
-Successful Requests:    35,982,000 (99.95%)
-Failed Requests:        18,000 (0.05%)
-Average Response Time:  145ms
-P95 Response Time:      150ms
-P99 Response Time:      280ms
-Throughput:             10,000 req/s
-
-Result: ✅ PASSED
-```
-
-### **Stress Testing Results**
-
-```
-Test: Gradual increase to 50,000 concurrent users
-───────────────────────────────────────────────────────────────────────
-Breaking Point:         75,000 concurrent users
-Max Throughput:         125,000 req/s
-Response Time at Max:   P95 = 180ms, P99 = 320ms
-Auto-Scaling:           Scaled from 15 to 150 pods
-Recovery Time:          90 seconds
-
-Result: ✅ PASSED
+```bash
+curl http://localhost:7020/health  # Auth Service
+curl http://localhost:7000/health  # Main NileCare
+curl http://localhost:7010/health  # Business Service
+curl http://localhost:7030/health  # Payment Gateway
+curl http://localhost:7040/health  # Appointment Service
+curl http://localhost:7001/health  # API Gateway
 ```
 
 ---
 
-## **🎯 Use Cases**
+## 📚 Documentation
 
-### **For Hospitals**
+- **[System Documentation](./NILECARE_SYSTEM_DOCUMENTATION.md)** - Complete technical documentation
+- **[Comprehensive Report](./NILECARE_COMPREHENSIVE_REPORT.md)** - Detailed analysis and architecture
+- **[API Documentation](http://localhost:7001/api-docs)** - Swagger/OpenAPI docs (when running)
 
-- Complete EHR system with SOAP notes
-- Inpatient management (ADT)
-- Operating room scheduling
-- ICU monitoring with medical devices
-- Lab information system (LIS)
-- Pharmacy management
-- Billing and claims processing
+### Project Structure
 
-### **For Clinics**
-
-- Outpatient management
-- Appointment scheduling
-- Electronic prescriptions
-- Lab orders and results
-- Patient portal
-- Telemedicine support
-
-### **For Dental Practices**
-
-- Dental charting
-- Treatment planning
-- Dental imaging (DICOM)
-- Appointment reminders
-- Insurance claims
-
-### **For Pharmacies**
-
-- Medication dispensing
-- Inventory management
-- Drug interaction checking
-- Barcode verification
-- Insurance adjudication
-
----
-
-## **🛠️ Technology Stack**
-
-### **Backend**
-
-- **Runtime**: Node.js 18+ (LTS)
-- **Framework**: Express.js, NestJS
-- **Language**: TypeScript
-- **API**: REST, GraphQL, FHIR R4
-- **Authentication**: JWT, OAuth2, OpenID Connect
-- **Validation**: Joi, Zod
-
-### **Frontend**
-
-- **Framework**: React 18+
-- **UI Library**: Material-UI (MUI)
-- **State Management**: Redux Toolkit, React Query
-- **Forms**: React Hook Form
-- **Charts**: Recharts, Chart.js
-- **Mobile**: React Native
-
-### **Databases**
-
-- **Relational**: MySQL 8.0+, PostgreSQL 15+
-- **NoSQL**: MongoDB 6.0+
-- **Cache**: Redis 7.0+
-- **Search**: Elasticsearch 8.0+
-- **Time-Series**: TimescaleDB 2.0+
-
-### **Infrastructure**
-
-- **Container**: Docker, Docker Compose
-- **Orchestration**: Kubernetes 1.28+
-- **Service Mesh**: Istio 1.20+
-- **API Gateway**: Kong Gateway
-- **Message Broker**: Apache Kafka 3.0+
-- **Monitoring**: Prometheus, Grafana, Jaeger, ELK
+```
+NileCare/
+├── clients/
+│   └── web-dashboard/           # React frontend application
+│       ├── src/
+│       │   ├── components/      # Reusable UI components
+│       │   ├── pages/           # Page components
+│       │   ├── services/        # API services
+│       │   └── contexts/        # React contexts
+│       └── package.json
+│
+├── microservices/
+│   ├── auth-service/            # Authentication & authorization
+│   ├── main-nilecare/           # Central orchestration service
+│   ├── business/                # Business logic (appointments, billing)
+│   ├── payment-gateway-service/ # Payment processing
+│   ├── appointment-service/     # Appointment management
+│   └── common/                  # Shared types and DTOs
+│
+├── shared/                      # Shared middleware and utilities
+│   ├── middleware/              # Auth, validation, audit
+│   ├── services/                # Compliance, PHI audit
+│   └── utils/                   # Validation, helpers
+│
+├── database/
+│   ├── mysql/schema/            # MySQL database schemas
+│   ├── postgresql/schema/       # PostgreSQL schemas
+│   └── SEED_DATABASE.sql        # Sample data
+│
+├── infrastructure/
+│   ├── kubernetes/              # K8s deployment manifests
+│   ├── istio/                   # Service mesh configuration
+│   ├── api-gateway/             # Kong gateway config
+│   └── monitoring/              # Prometheus configuration
+│
+├── gateway/                     # Express-based API gateway
+├── docker-compose.yml           # Local development setup
+└── README.md
+```
 
 ---
 
-## **📈 Monitoring & Observability**
+## 🔧 Development
 
-### **Metrics**
+### Adding a New Service
 
-- **Prometheus**: 500+ metrics collected
-- **Grafana**: 7 dashboards, 100+ panels
-- **Custom Metrics**: Clinical quality measures
+1. Create service directory in `microservices/`
+2. Initialize with `npm init` and add dependencies
+3. Create basic Express server with TypeScript
+4. Add to `docker-compose.yml`
+5. Update API Gateway routing
+6. Add health check endpoints
+7. Document in system documentation
 
-### **Logging**
+### Code Style
 
-- **ELK Stack**: Centralized log aggregation
-- **Structured Logging**: JSON format
-- **Log Retention**: 30 days hot, 1 year cold
+- TypeScript for all backend services
+- ESLint + Prettier for code formatting
+- Follow Airbnb style guide
+- Use meaningful variable names
+- Add JSDoc comments for functions
 
-### **Tracing**
+### Git Workflow
 
-- **Jaeger**: Distributed tracing
-- **Trace Sampling**: 100% critical, 10% others
-- **Service Dependencies**: Automatic service graph
+```bash
+# Create feature branch
+git checkout -b feature/your-feature-name
 
-### **Alerting**
+# Make changes and commit
+git add .
+git commit -m "feat: add new feature"
 
-- **AlertManager**: Multi-channel alerts
-- **PagerDuty**: Critical alerts (< 5 min response)
-- **Slack**: Warning alerts (< 15 min response)
-- **Email**: Info alerts (daily summary)
+# Push and create PR
+git push origin feature/your-feature-name
+```
 
 ---
 
-## **🚀 Deployment**
+## 📊 Monitoring
 
-### **Kubernetes Deployment**
+### Health Endpoints
+
+All services expose standardized health endpoints:
+
+- `GET /health` - Liveness probe
+- `GET /health/ready` - Readiness probe
+- `GET /health/startup` - Startup probe
+- `GET /metrics` - Prometheus metrics
+
+### Logging
+
+- Centralized logging with Winston
+- Log levels: `error`, `warn`, `info`, `debug`
+- Structured JSON logging
+- Log rotation and retention
+
+### Metrics
+
+- Prometheus metrics collection
+- Grafana dashboards
+- Key metrics:
+  - Request rate and latency
+  - Error rates
+  - Database connection pool stats
+  - Custom business metrics
+
+---
+
+## 🚀 Production Deployment
+
+### Kubernetes Deployment
 
 ```bash
 # Create namespace
@@ -389,176 +706,128 @@ kubectl apply -f infrastructure/kubernetes/namespace.yaml
 kubectl apply -f infrastructure/kubernetes/secrets.yaml
 kubectl apply -f infrastructure/kubernetes/configmap.yaml
 
-# Deploy databases
-kubectl apply -f infrastructure/kubernetes/postgres.yaml
-
-# Deploy microservices
+# Deploy services
 kubectl apply -f infrastructure/kubernetes/
 
-# Deploy Istio service mesh
-kubectl apply -f infrastructure/istio/
-
-# Verify deployment
+# Check deployment status
 kubectl get pods -n nilecare
+kubectl get services -n nilecare
 ```
 
-### **Helm Deployment**
+### Docker Build
 
 ```bash
-# Add Helm repository
-helm repo add nilecare https://charts.nilecare.com
+# Build all services
+docker-compose build
 
-# Install NileCare platform
-helm install nilecare nilecare/nilecare \
-  --namespace nilecare \
-  --create-namespace \
-  --values values-production.yaml
-
-# Verify installation
-helm status nilecare -n nilecare
+# Push to registry
+docker tag nilecare/auth-service:latest your-registry/auth-service:v1.0.0
+docker push your-registry/auth-service:v1.0.0
 ```
 
 ---
 
-## **🧪 Testing**
+## 🔒 Security
 
-### **Unit Tests**
+### Security Features
 
-```bash
-# Run all unit tests
-npm run test
+- ✅ JWT token authentication
+- ✅ Argon2 password hashing
+- ✅ Rate limiting
+- ✅ CORS protection
+- ✅ Helmet.js security headers
+- ✅ SQL injection prevention
+- ✅ XSS protection
+- ✅ CSRF protection
+- ✅ PHI audit logging
+- ✅ MFA support
 
-# Run with coverage
-npm run test:coverage
+### Security Best Practices
 
-# Target: 85% coverage ✅
-```
-
-### **Integration Tests**
-
-```bash
-# Run integration tests
-npm run test:integration
-
-# Target: 75% coverage ✅
-```
-
-### **E2E Tests**
-
-```bash
-# Run end-to-end tests
-npm run test:e2e
-
-# Run specific feature
-npm run test:e2e -- --spec "patient-registration"
-```
-
-### **Performance Tests**
-
-```bash
-# Load testing (JMeter)
-npm run test:load
-
-# Stress testing
-npm run test:stress
-
-# Endurance testing (72 hours)
-npm run test:endurance
-```
+1. **Never commit secrets** - Use environment variables
+2. **Regular security audits** - Run `npm audit` regularly
+3. **Keep dependencies updated** - Use Dependabot
+4. **Enable HTTPS in production** - Use TLS 1.3
+5. **Implement IP whitelisting** - For admin endpoints
+6. **Regular backups** - Database and file backups
+7. **Security training** - For all developers
 
 ---
 
-## **👥 User Roles**
+## 🤝 Contributing
 
-| Role | Description | Access Level |
-|------|-------------|--------------|
-| **Super Admin** | Platform administrator | Full access |
-| **Hospital Admin** | Facility administrator | Facility-wide |
-| **Doctor** | Physician | Clinical data |
-| **Dentist** | Dental practitioner | Dental records |
-| **Nurse** | Nursing staff | Patient care |
-| **Pharmacist** | Pharmacy staff | Medications |
-| **Lab Technician** | Laboratory staff | Lab orders/results |
-| **Accountant** | Financial staff | Billing data |
-| **Receptionist** | Front desk staff | Registration |
-| **Patient** | Patient user | Personal records |
+We welcome contributions! Please follow these guidelines:
 
----
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests
+5. Run linting and tests
+6. Submit a pull request
 
-## **📞 Support**
+### Code of Conduct
 
-### **Documentation**
-
-- **Website**: https://nilecare.sd
-- **Docs**: https://docs.nilecare.sd
-- **API Docs**: https://api.nilecare.sd/docs
-
-### **Contact**
-
-- **Email**: support@nilecare.sd
-- **Phone**: +249 XXX XXX XXX
-- **Address**: Khartoum, Sudan
-
-### **Community**
-
-- **GitHub**: https://github.com/nilecare
-- **Slack**: https://nilecare.slack.com
-- **Forum**: https://forum.nilecare.sd
+Please read our [Code of Conduct](CODE_OF_CONDUCT.md) before contributing.
 
 ---
 
-## **📝 License**
+## 📄 License
 
-Copyright © 2024 NileCare Healthcare Platform
-
-All rights reserved. This software is proprietary and confidential.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
-## **🎊 Status**
+## 👥 Team
 
-```
-═══════════════════════════════════════════════════════════════════════
-                    PLATFORM STATUS
-═══════════════════════════════════════════════════════════════════════
-
-Implementation:                  ✅ 100% COMPLETE
-Production Readiness:            ✅ READY
-HIPAA Compliance:               ✅ 100%
-Sudan Localization:             ✅ 100%
-Performance Testing:            ✅ PASSED
-Security Audit:                 ✅ PASSED
-Load Testing:                   ✅ PASSED (75k users)
-Stress Testing:                 ✅ PASSED (125k req/s)
-Endurance Testing:              ✅ PASSED (72 hours)
-
-═══════════════════════════════════════════════════════════════════════
-                    🚀 PRODUCTION READY 🚀
-═══════════════════════════════════════════════════════════════════════
-```
+**NileCare Development Team**
+- Built with ❤️ for the Sudan healthcare community
 
 ---
 
-## **🏆 Achievements**
+## 📞 Support
 
-✅ **Enterprise-Grade Architecture** - Microservices, event-driven, CQRS  
-✅ **World-Class Performance** - 150ms API response, 125k req/s throughput  
-✅ **Bank-Level Security** - 4-layer security, 100% HIPAA compliance  
-✅ **Unlimited Scalability** - Auto-scaling from 15 to 150 pods  
-✅ **Complete Observability** - 500+ metrics, 7 dashboards  
-✅ **International Standards** - FHIR R4, HL7 v2.x, DICOM  
-✅ **Real-Time Integration** - 1,200+ medical devices  
-✅ **Sudan Optimization** - 100% localized  
-✅ **Production Ready** - Fully tested and documented  
+For support and questions:
+- 📧 Email: support@nilecare.sd
+- 🌐 Website: https://nilecare.sd
+- 📖 Documentation: https://docs.nilecare.sd
 
 ---
 
-# **🇸🇩 Built for Sudan's Healthcare Future! 🏥**
+## 🗺 Roadmap
 
-**Ready to transform healthcare delivery across Sudan with cutting-edge technology, world-class security, and complete localization.**
+### Version 2.1 (Q1 2026)
+- [ ] Mobile applications (iOS & Android)
+- [ ] Telemedicine integration
+- [ ] Advanced analytics with ML
+- [ ] Multi-language support (French, Swahili)
+
+### Version 2.2 (Q2 2026)
+- [ ] HL7 v2.x integration
+- [ ] DICOM image viewer
+- [ ] Voice-to-text for clinical notes
+- [ ] Blockchain for medical records
+
+### Version 3.0 (Q4 2026)
+- [ ] AI-powered clinical decision support
+- [ ] Predictive analytics
+- [ ] IoT device integration
+- [ ] Federated learning for privacy-preserving AI
 
 ---
 
-*NileCare Platform v2.0.0 - October 2024*
+## 🙏 Acknowledgments
 
-*Built with ❤️ for Sudan*
+- Sudan Ministry of Health for guidelines and support
+- Open source community for amazing tools
+- All contributors and testers
+
+---
+
+<div align="center">
+
+**Made with ❤️ for Sudan Healthcare**
+
+[⬆ Back to Top](#nilecare-healthcare-platform-)
+
+</div>
+

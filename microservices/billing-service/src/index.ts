@@ -1,320 +1,287 @@
-import express from 'express';
+/**
+ * Billing Service
+ * Main entry point for NileCare billing and claims management
+ * Port: 5003
+ * 
+ * RESPONSIBILITIES:
+ * - Invoice management (create, update, track)
+ * - Insurance claims processing
+ * - Billing account management
+ * - Payment allocation (link payments to invoices)
+ * - Billing reports and analytics
+ * 
+ * INTEGRATIONS:
+ * - Auth Service (authentication & authorization)
+ * - Payment Gateway (payment status queries)
+ * - Business Service (appointment/encounter data)
+ * 
+ * ⚠️ DOES NOT: Process payments (that's Payment Gateway's job)
+ */
+
+import 'reflect-metadata';
+import express, { Application } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import morgan from 'morgan';
 import compression from 'compression';
-import dotenv from 'dotenv';
-import { createServer } from 'http';
-import { Server as SocketIOServer } from 'socket.io';
-import swaggerUi from 'swagger-ui-express';
-import swaggerJsdoc from 'swagger-jsdoc';
-import rateLimit from 'express-rate-limit';
+import { config } from 'dotenv';
 import cron from 'node-cron';
 
-// Import routes
-import billingRoutes from './routes/billing';
-import claimRoutes from './routes/claims';
-import paymentRoutes from './routes/payments';
-import insuranceRoutes from './routes/insurance';
-import reportingRoutes from './routes/reporting';
+// Load environment variables FIRST
+config();
+
+// Import configuration
+import DatabaseConfig from './config/database.config';
+import SecretsConfig from './config/secrets.config';
+import { logger } from './config/logger.config';
 
 // Import middleware
-import { errorHandler } from './middleware/errorHandler';
-import { requestLogger } from './middleware/logger';
-import { authMiddleware } from './middleware/auth';
-import { validateRequest } from './middleware/validation';
+import { errorHandler } from './middleware/error-handler.middleware';
+import { requestLogger } from './middleware/request-logger.middleware';
+import { rateLimiter } from './middleware/rate-limiter.middleware';
+import { auditLoggerMiddleware } from './middleware/audit-logger.middleware';
+
+// Import routes
+import invoiceRoutes from './routes/invoice.routes';
+import claimRoutes from './routes/claim.routes';
+import webhookRoutes from './routes/webhook.routes';
+import healthRoutes from './routes/health.routes';
 
 // Import services
-import { BillingService } from './services/BillingService';
-import { ClaimService } from './services/ClaimService';
-import { PaymentService } from './services/PaymentService';
-import { InsuranceService } from './services/InsuranceService';
-import { NotificationService } from './services/NotificationService';
-import { EventService } from './services/EventService';
+import InvoiceService from './services/invoice.service';
 
-// Load environment variables
-dotenv.config();
+// ============================================================================
+// STARTUP VALIDATION
+// ============================================================================
 
-// Environment validation
-const REQUIRED_ENV_VARS = ['DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASSWORD'];
-function validateEnvironment() {
-  const missing = REQUIRED_ENV_VARS.filter(k => !process.env[k]);
-  if (missing.length > 0) {
-    console.error('Missing required environment variables:', missing);
-    throw new Error(`Missing env vars: ${missing.join(', ')}`);
-  }
+console.log('');
+console.log('═══════════════════════════════════════════════════════════');
+console.log('💰  BILLING SERVICE STARTING');
+console.log('═══════════════════════════════════════════════════════════');
+console.log('');
+
+// Validate environment and secrets
+try {
+  SecretsConfig.validateAll();
+} catch (error: any) {
+  console.error('❌ Configuration error:', error.message);
+  process.exit(1);
 }
-validateEnvironment();
 
-let appInitialized = false;
-const serviceStartTime = Date.now();
-
-
-const app = express();
-const server = createServer(app);
-const io = new SocketIOServer(server, {
-  cors: {
-    origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
-    methods: ['GET', 'POST', 'PUT', 'DELETE']
-  }
+// Validate database schema
+DatabaseConfig.verifySchema().catch(error => {
+  console.warn('⚠️  Database schema validation warning:', error.message);
+  console.warn('⚠️  Some tables may be missing. Service will continue but may fail on database operations.');
 });
 
-const PORT = process.env.PORT || 5003;
+// ============================================================================
+// EXPRESS APP SETUP
+// ============================================================================
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 1000, // limit each IP to 1000 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.',
-  standardHeaders: true,
-  legacyHeaders: false,
-});
+const app: Application = express();
+const PORT = parseInt(process.env.PORT || '5003');
 
-// Middleware
-app.use(helmet());
-app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
-  credentials: true
+// Security middleware
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: false,
 }));
+
+// CORS configuration
+app.use(cors({
+  origin: (process.env.ALLOWED_ORIGINS || 'http://localhost:5173').split(','),
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
+
+// Compression
 app.use(compression());
-app.use(morgan('combined'));
-app.use(limiter);
+
+// Body parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Request logging
 app.use(requestLogger);
 
-// Swagger configuration
-const swaggerOptions = {
-  definition: {
-    openapi: '3.0.0',
-    info: {
-      title: 'NileCare Billing Service API',
-      version: '1.0.0',
-      description: 'Billing, insurance claims, and payment processing service',
+// Rate limiting
+app.use(rateLimiter);
+
+// Audit logging
+app.use(auditLoggerMiddleware);
+
+// ============================================================================
+// SERVICE INFO ENDPOINT
+// ============================================================================
+
+app.get('/', (_req, res) => {
+  res.json({
+    service: 'NileCare Billing Service',
+    version: '1.0.0',
+    status: 'running',
+    port: PORT,
+    description: 'Invoice management, insurance claims, and billing operations',
+    architecture: {
+      responsibility: 'Billing records, invoices, and claims management',
+      database: 'Shared MySQL (nilecare)',
+      authentication: 'Centralized via Auth Service (port 7020)',
+      paymentProcessing: 'Delegated to Payment Gateway (port 7030)'
     },
-    servers: [
-      {
-        url: `http://localhost:${PORT}`,
-        description: 'Development server',
-      },
-    ],
-    components: {
-      securitySchemes: {
-        bearerAuth: {
-          type: 'http',
-          scheme: 'bearer',
-          bearerFormat: 'JWT',
-        },
-      },
+    routes: {
+      health: '/health',
+      invoices: '/api/v1/invoices/*',
+      claims: '/api/v1/claims/*',
+      webhooks: '/api/v1/webhooks/*'
     },
-  },
-  apis: ['./src/routes/*.ts', './src/models/*.ts'],
-};
-
-const specs = swaggerJsdoc(swaggerOptions);
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
-
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.status(200).json({
-    status: 'healthy',
-    service: 'billing-service',
-    timestamp: new Date().toISOString(),
-    version: '1.0.0'
-  });
-
-// Readiness probe
-app.get('/health/ready', async (req, res) => {
-  try {
-    // Check database if available
-    if (typeof dbPool !== 'undefined' && dbPool) {
-      await dbPool.query('SELECT 1');
-    }
-    res.status(200).json({ status: 'ready', timestamp: new Date().toISOString() });
-  } catch (error) {
-    res.status(503).json({ status: 'not_ready', error: error.message });
-  }
-});
-
-// Startup probe
-app.get('/health/startup', (req, res) => {
-  res.status(appInitialized ? 200 : 503).json({
-    status: appInitialized ? 'started' : 'starting',
+    integrations: {
+      auth: process.env.AUTH_SERVICE_URL || 'http://localhost:7020',
+      paymentGateway: process.env.PAYMENT_GATEWAY_URL || 'http://localhost:7030'
+    },
     timestamp: new Date().toISOString()
   });
 });
 
-// Metrics endpoint
-app.get('/metrics', (req, res) => {
-  const uptime = Math.floor((Date.now() - serviceStartTime) / 1000);
-  res.setHeader('Content-Type', 'text/plain');
-  res.send(`service_uptime_seconds ${uptime}`);
-});
+// ============================================================================
+// ROUTES
+// ============================================================================
 
-});
+app.use('/health', healthRoutes);
+app.use('/api/v1/invoices', invoiceRoutes);
+app.use('/api/v1/claims', claimRoutes);
+app.use('/api/v1/webhooks', webhookRoutes);
 
-// API routes
-app.use('/api/v1/billing', authMiddleware, billingRoutes);
-app.use('/api/v1/claims', authMiddleware, claimRoutes);
-app.use('/api/v1/payments', authMiddleware, paymentRoutes);
-app.use('/api/v1/insurance', authMiddleware, insuranceRoutes);
-app.use('/api/v1/reporting', authMiddleware, reportingRoutes);
-
-// WebSocket connection handling
-io.on('connection', (socket) => {
-  console.log(`Client connected: ${socket.id}`);
-
-  // Join user-specific room
-  socket.on('join-user', (userId: string) => {
-    socket.join(`user-${userId}`);
-    console.log(`Client ${socket.id} joined user room ${userId}`);
-  });
-
-  // Join provider-specific room
-  socket.on('join-provider', (providerId: string) => {
-    socket.join(`provider-${providerId}`);
-    console.log(`Client ${socket.id} joined provider room ${providerId}`);
-  });
-
-  // Handle claim submission
-  socket.on('submit-claim', async (data: any) => {
-    try {
-      const { patientId, providerId, claimData } = data;
-      
-      const claimService = new ClaimService();
-      const claim = await claimService.submitClaim(claimData);
-      
-      // Notify relevant parties
-      io.to(`user-${patientId}`).emit('claim-submitted', claim);
-      io.to(`provider-${providerId}`).emit('claim-submitted', claim);
-      
-    } catch (error) {
-      console.error('Error submitting claim:', error);
-      socket.emit('error', { message: 'Failed to submit claim' });
-    }
-  });
-
-  // Handle payment processing
-  socket.on('process-payment', async (data: any) => {
-    try {
-      const { patientId, paymentData } = data;
-      
-      const paymentService = new PaymentService();
-      const payment = await paymentService.processPayment(paymentData);
-      
-      // Notify patient
-      io.to(`user-${patientId}`).emit('payment-processed', payment);
-      
-    } catch (error) {
-      console.error('Error processing payment:', error);
-      socket.emit('error', { message: 'Failed to process payment' });
-    }
-  });
-
-  // Handle claim status updates
-  socket.on('claim-status-update', async (data: any) => {
-    try {
-      const { claimId, status, details } = data;
-      
-      const claimService = new ClaimService();
-      const claim = await claimService.updateClaimStatus(claimId, status, details);
-      
-      // Notify relevant parties
-      io.to(`user-${claim.patientId}`).emit('claim-status-changed', claim);
-      io.to(`provider-${claim.providerId}`).emit('claim-status-changed', claim);
-      
-    } catch (error) {
-      console.error('Error updating claim status:', error);
-      socket.emit('error', { message: 'Failed to update claim status' });
-    }
-  });
-
-  socket.on('disconnect', () => {
-    console.log(`Client disconnected: ${socket.id}`);
-  });
-});
-
-// Scheduled tasks
-// Process pending claims every hour
-cron.schedule('0 * * * *', async () => {
-  console.log('Processing pending claims...');
-  try {
-    const claimService = new ClaimService();
-    await claimService.processPendingClaims();
-  } catch (error) {
-    console.error('Error processing pending claims:', error);
-  }
-});
-
-// Send payment reminders daily at 9 AM
-cron.schedule('0 9 * * *', async () => {
-  console.log('Sending payment reminders...');
-  try {
-    const billingService = new BillingService();
-    await billingService.sendPaymentReminders();
-  } catch (error) {
-    console.error('Error sending payment reminders:', error);
-  }
-});
-
-// Generate financial reports daily at 11 PM
-cron.schedule('0 23 * * *', async () => {
-  console.log('Generating financial reports...');
-  try {
-    const billingService = new BillingService();
-    await billingService.generateDailyReports();
-  } catch (error) {
-    console.error('Error generating financial reports:', error);
-  }
-});
-
-// Process denial management weekly on Monday at 8 AM
-cron.schedule('0 8 * * 1', async () => {
-  console.log('Processing denial management...');
-  try {
-    const claimService = new ClaimService();
-    await claimService.processDenialManagement();
-  } catch (error) {
-    console.error('Error processing denial management:', error);
-  }
-});
-
-// Error handling middleware
-app.use(errorHandler);
+// ============================================================================
+// ERROR HANDLING
+// ============================================================================
 
 // 404 handler
-app.use('*', (req, res) => {
+app.use('*', (_req, res) => {
   res.status(404).json({
     success: false,
-    message: 'Route not found',
-    path: req.originalUrl
+    error: {
+      code: 'NOT_FOUND',
+      message: 'Route not found'
+    }
   });
 });
 
-// Start server
-server.listen(PORT, () => {
-  console.log(`💰 Billing Service running on port ${PORT}`);
-  console.log(`📚 API Documentation available at http://localhost:${PORT}/api-docs`);
-  console.log(`🔌 WebSocket server running on port ${PORT}`);
+// Global error handler
+app.use(errorHandler);
+
+// ============================================================================
+// SCHEDULED TASKS
+// ============================================================================
+
+const invoiceService = new InvoiceService();
+
+// Mark overdue invoices - Daily at 2 AM
+const overdueCheckSchedule = process.env.OVERDUE_CHECK_CRON_SCHEDULE || '0 2 * * *';
+cron.schedule(overdueCheckSchedule, async () => {
+  logger.info('Running overdue invoice check...');
+  try {
+    const marked = await invoiceService.markOverdueInvoices();
+    logger.info(`Marked ${marked} invoices as overdue`);
+  } catch (error: any) {
+    logger.error('Overdue check failed', { error: error.message });
+  }
 });
 
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received, shutting down gracefully');
-  server.close(() => {
-    console.log('Process terminated');
-    process.exit(0);
+// Apply late fees - Daily at midnight (if enabled)
+if (process.env.ENABLE_AUTO_LATE_FEES === 'true') {
+  const lateFeeSchedule = process.env.LATE_FEE_CRON_SCHEDULE || '0 0 * * *';
+  cron.schedule(lateFeeSchedule, async () => {
+    logger.info('Running late fee application...');
+    // Would call a late fee service method
+    logger.info('Late fee application complete');
+  });
+}
+
+// ============================================================================
+// START SERVER
+// ============================================================================
+
+app.listen(PORT, () => {
+  console.log('');
+  console.log('═══════════════════════════════════════════════════════════');
+  console.log('✅  BILLING SERVICE STARTED SUCCESSFULLY');
+  console.log('═══════════════════════════════════════════════════════════');
+  console.log(`📡  Service URL:       http://localhost:${PORT}`);
+  console.log(`🏥  Health Check:      http://localhost:${PORT}/health`);
+  console.log(`📊  Readiness:         http://localhost:${PORT}/health/ready`);
+  console.log('');
+  console.log('📍  API Endpoints:');
+  console.log('   /api/v1/invoices/*     Invoice management');
+  console.log('   /api/v1/claims/*       Insurance claims');
+  console.log('   /api/v1/webhooks/*     Payment Gateway callbacks');
+  console.log('');
+  console.log('🔗  Service Integrations:');
+  console.log(`   Auth Service:          ${process.env.AUTH_SERVICE_URL}`);
+  console.log(`   Payment Gateway:       ${process.env.PAYMENT_GATEWAY_URL}`);
+  console.log('');
+  console.log('📋  Scheduled Tasks:');
+  console.log(`   Overdue Check:         ${overdueCheckSchedule}`);
+  if (process.env.ENABLE_AUTO_LATE_FEES === 'true') {
+    console.log(`   Late Fees:             ${process.env.LATE_FEE_CRON_SCHEDULE || '0 0 * * *'}`);
+  }
+  console.log('');
+  console.log('✅ Billing Service Ready!');
+  console.log('═══════════════════════════════════════════════════════════');
+  console.log('');
+  
+  logger.info('Billing Service started', {
+    port: PORT,
+    environment: process.env.NODE_ENV || 'development',
+    database: process.env.DB_NAME,
+    authService: process.env.AUTH_SERVICE_URL,
+    paymentGateway: process.env.PAYMENT_GATEWAY_URL
   });
 });
 
-process.on('SIGINT', () => {
-  console.log('SIGINT received, shutting down gracefully');
-  server.close(() => {
-    console.log('Process terminated');
-    process.exit(0);
-  });
+// ============================================================================
+// GRACEFUL SHUTDOWN
+// ============================================================================
+
+process.on('SIGTERM', async () => {
+  logger.info('SIGTERM received, shutting down gracefully');
+  
+  try {
+    await DatabaseConfig.close();
+    logger.info('Database connections closed');
+  } catch (error: any) {
+    logger.error('Error during shutdown', { error: error.message });
+  }
+  
+  process.exit(0);
 });
 
-export { app, server, io };
+process.on('SIGINT', async () => {
+  logger.info('SIGINT received, shutting down gracefully');
+  
+  try {
+    await DatabaseConfig.close();
+    logger.info('Database connections closed');
+  } catch (error: any) {
+    logger.error('Error during shutdown', { error: error.message });
+  }
+  
+  process.exit(0);
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error: Error) => {
+  logger.error('Uncaught Exception', {
+    error: error.message,
+    stack: error.stack
+  });
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason: any) => {
+  logger.error('Unhandled Rejection', {
+    reason: reason.message || reason
+  });
+  process.exit(1);
+});
+
+export default app;

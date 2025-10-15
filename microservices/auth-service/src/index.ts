@@ -13,7 +13,8 @@ import swaggerJsdoc from 'swagger-jsdoc';
 import passport from 'passport';
 import { Strategy as JwtStrategy, ExtractJwt } from 'passport-jwt';
 import { Strategy as LocalStrategy } from 'passport-local';
-import { OAuth2Strategy } from 'passport-oauth2';
+// OAuth2Strategy temporarily removed - not needed for basic JWT authentication
+// import OAuth2Strategy = require('passport-oauth2');
 import RedisStore from 'connect-redis';
 import { createClient } from 'redis';
 
@@ -22,6 +23,7 @@ import { errorHandler } from './middleware/errorHandler';
 import { rateLimiter } from './middleware/rateLimiter';
 import { validateRequest } from './middleware/validation';
 import { setupPassportStrategies } from './config/passport';
+import { initializeDatabase } from './config/database';
 
 // Routes
 import authRoutes from './routes/auth';
@@ -30,6 +32,7 @@ import roleRoutes from './routes/roles';
 import sessionRoutes from './routes/sessions';
 import mfaRoutes from './routes/mfa';
 import oauthRoutes from './routes/oauth';
+import integrationRoutes from './routes/integration';
 
 // Services
 import { AuthService } from './services/AuthService';
@@ -41,15 +44,71 @@ import { OAuthService } from './services/OAuthService';
 
 dotenv.config();
 
-// Environment validation
-const REQUIRED_ENV_VARS = ['DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASSWORD'];
+// =============================================================================
+// ENVIRONMENT VALIDATION
+// =============================================================================
+const REQUIRED_ENV_VARS = [
+  'DB_HOST',
+  'DB_NAME',
+  'DB_USER',
+  'JWT_SECRET',
+  'JWT_REFRESH_SECRET',
+  'SESSION_SECRET',
+  'MFA_ENCRYPTION_KEY'
+];
+
+const PRODUCTION_REQUIRED_ENV_VARS = [
+  ...REQUIRED_ENV_VARS,
+  'DB_PASSWORD',
+  'REDIS_URL'
+];
+
 function validateEnvironment() {
-  const missing = REQUIRED_ENV_VARS.filter(k => !process.env[k]);
+  const isProduction = process.env.NODE_ENV === 'production';
+  const requiredVars = isProduction ? PRODUCTION_REQUIRED_ENV_VARS : REQUIRED_ENV_VARS;
+  
+  const missing = requiredVars.filter(k => !process.env[k]);
+  
   if (missing.length > 0) {
-    console.error('Missing required environment variables:', missing);
-    throw new Error(`Missing env vars: ${missing.join(', ')}`);
+    console.error('❌ Missing required environment variables:', missing);
+    console.error('💡 Copy .env.example to .env and update all values');
+    throw new Error(`Missing critical env vars: ${missing.join(', ')}`);
   }
+
+  // Validate secret lengths
+  const secrets = [
+    { name: 'JWT_SECRET', value: process.env.JWT_SECRET },
+    { name: 'JWT_REFRESH_SECRET', value: process.env.JWT_REFRESH_SECRET },
+    { name: 'SESSION_SECRET', value: process.env.SESSION_SECRET },
+    { name: 'MFA_ENCRYPTION_KEY', value: process.env.MFA_ENCRYPTION_KEY }
+  ];
+
+  for (const secret of secrets) {
+    if (secret.value && secret.value.length < 32) {
+      throw new Error(`${secret.name} must be at least 32 characters long`);
+    }
+    // Check for default/example values
+    if (secret.value && (
+      secret.value.includes('CHANGE_THIS') || 
+      secret.value.includes('change-this') ||
+      secret.value === 'nilecare-jwt-secret' ||
+      secret.value === 'default-mfa-key-change-in-production'
+    )) {
+      throw new Error(`${secret.name} contains default value. Generate a secure random string!`);
+    }
+  }
+
+  // DB_PASSWORD is optional for local MySQL (XAMPP default has no password)
+  if (process.env.DB_PASSWORD === undefined) {
+    process.env.DB_PASSWORD = '';
+    if (isProduction) {
+      console.warn('⚠️  WARNING: DB_PASSWORD is empty in production!');
+    }
+  }
+
+  logger.info('✅ Environment validation passed');
 }
+
 validateEnvironment();
 
 let appInitialized = false;
@@ -66,14 +125,34 @@ const io = new Server(server, {
   }
 });
 
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 7020;
 
-// Redis client for session storage
-const redisClient = createClient({
-  url: process.env.REDIS_URL || 'redis://localhost:6379'
-});
+// Redis client for session storage (optional)
+let redisClient: any = null;
+let redisConnected = false;
 
-redisClient.connect().catch(console.error);
+// Try to initialize Redis connection (non-blocking)
+async function initRedis() {
+  try {
+    redisClient = createClient({
+      url: process.env.REDIS_URL || 'redis://localhost:6379',
+      socket: {
+        connectTimeout: 2000,
+        reconnectStrategy: false // Don't retry on failure
+      }
+    });
+    await redisClient.connect();
+    redisConnected = true;
+    logger.info('✅ Redis connected successfully');
+  } catch (err: any) {
+    logger.warn('⚠️  Redis not available - using in-memory session storage');
+    redisClient = null;
+    redisConnected = false;
+  }
+}
+
+// Initialize Redis in the background (don't wait for it)
+initRedis();
 
 // Swagger configuration
 const swaggerOptions = {
@@ -115,7 +194,13 @@ app.use(helmet({
   contentSecurityPolicy: false, // Disable for Swagger UI
 }));
 app.use(cors({
-  origin: process.env.CLIENT_URL || "http://localhost:3000",
+  origin: [
+    "http://localhost:5173",
+    "http://localhost:5174", 
+    "http://localhost:5175",
+    "http://localhost:3000",
+    process.env.CLIENT_URL || ""
+  ].filter(url => url !== ""),
   credentials: true
 }));
 app.use(compression());
@@ -129,8 +214,8 @@ if (!process.env.SESSION_SECRET) {
   process.exit(1);
 }
 
-app.use(session({
-  store: new RedisStore({ client: redisClient }),
+// Session configuration with optional Redis store
+const sessionConfig: any = {
   secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
@@ -140,7 +225,17 @@ app.use(session({
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
     sameSite: 'lax'
   }
-}));
+};
+
+// Use Redis store if available, otherwise use default in-memory store
+if (redisClient && redisConnected) {
+  sessionConfig.store = new RedisStore({ client: redisClient });
+  logger.info('Using Redis session store');
+} else {
+  logger.info('Using in-memory session store (not recommended for production)');
+}
+
+app.use(session(sessionConfig));
 
 // Initialize Passport
 app.use(passport.initialize());
@@ -167,17 +262,61 @@ app.get('/health', (req, res) => {
       sessionManagement: true
     }
   });
+});
 
 // Readiness probe
 app.get('/health/ready', async (req, res) => {
+  const checks = {
+    database: false,
+    redis: false,
+    overall: false
+  };
+
   try {
-    // Check database if available
-    if (typeof dbPool !== 'undefined' && dbPool) {
-      await dbPool.query('SELECT 1');
+    // Check database connection
+    try {
+      const { getPool } = await import('./config/database');
+      const pool = getPool();
+      await pool.query('SELECT 1');
+      checks.database = true;
+    } catch (dbError) {
+      logger.error('Health check - Database failed:', dbError);
     }
-    res.status(200).json({ status: 'ready', timestamp: new Date().toISOString() });
-  } catch (error) {
-    res.status(503).json({ status: 'not_ready', error: error.message });
+
+    // Check Redis connection
+    try {
+      if (redisClient && redisConnected) {
+        await redisClient.ping();
+        checks.redis = true;
+      } else {
+        checks.redis = process.env.NODE_ENV !== 'production'; // OK in dev without Redis
+      }
+    } catch (redisError) {
+      logger.error('Health check - Redis failed:', redisError);
+    }
+
+    // Overall readiness
+    checks.overall = checks.database && checks.redis;
+
+    if (checks.overall) {
+      res.status(200).json({ 
+        status: 'ready', 
+        checks,
+        timestamp: new Date().toISOString() 
+      });
+    } else {
+      res.status(503).json({ 
+        status: 'not_ready', 
+        checks,
+        timestamp: new Date().toISOString() 
+      });
+    }
+  } catch (error: any) {
+    res.status(503).json({ 
+      status: 'not_ready', 
+      error: error.message,
+      timestamp: new Date().toISOString() 
+    });
   }
 });
 
@@ -196,8 +335,6 @@ app.get('/metrics', (req, res) => {
   res.send(`service_uptime_seconds ${uptime}`);
 });
 
-});
-
 // API Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
@@ -208,6 +345,9 @@ app.use('/api/v1/roles', roleRoutes);
 app.use('/api/v1/sessions', sessionRoutes);
 app.use('/api/v1/mfa', mfaRoutes);
 app.use('/api/v1/oauth', oauthRoutes);
+
+// Integration Routes (for service-to-service communication)
+app.use('/api/v1/integration', integrationRoutes);
 
 // OAuth2/OIDC callback routes
 app.use('/auth/oauth2', oauthRoutes);
@@ -246,18 +386,115 @@ app.use('*', (req, res) => {
   });
 });
 
-// Start server
-server.listen(PORT, () => {
-  logger.info(`Auth service running on port ${PORT}`);
-  logger.info(`API Documentation available at http://localhost:${PORT}/api-docs`);
-  logger.info(`Health check available at http://localhost:${PORT}/health`);
-  logger.info(`Features enabled: JWT, RBAC, MFA, OAuth2, OpenID Connect, Session Management`);
-});
+// =============================================================================
+// DATABASE SCHEMA VALIDATION
+// =============================================================================
+async function validateDatabaseSchema() {
+  try {
+    const pool = await initializeDatabase();
+    
+    // Check if required tables exist
+    const requiredTables = [
+      'auth_users',
+      'auth_refresh_tokens',
+      'auth_devices',
+      'auth_roles',
+      'auth_permissions',
+      'auth_audit_logs',
+      'auth_login_attempts'
+    ];
+
+    logger.info('🔍 Validating database schema...');
+
+    for (const tableName of requiredTables) {
+      const [rows]: any = await pool.query(
+        `SELECT TABLE_NAME 
+         FROM information_schema.TABLES 
+         WHERE TABLE_SCHEMA = DATABASE() 
+         AND TABLE_NAME = ?`,
+        [tableName]
+      );
+
+      if (!Array.isArray(rows) || rows.length === 0) {
+        throw new Error(
+          `❌ Required table '${tableName}' does not exist. ` +
+          `Run: mysql -u root -p ${process.env.DB_NAME} < create-mysql-tables.sql`
+        );
+      }
+    }
+
+    // Validate critical indexes exist
+    const criticalIndexes = [
+      { table: 'auth_users', index: 'idx_auth_users_email' },
+      { table: 'auth_refresh_tokens', index: 'idx_refresh_tokens_user' }
+    ];
+
+    for (const { table, index } of criticalIndexes) {
+      const [rows]: any = await pool.query(
+        `SELECT INDEX_NAME 
+         FROM information_schema.STATISTICS 
+         WHERE TABLE_SCHEMA = DATABASE() 
+         AND TABLE_NAME = ? 
+         AND INDEX_NAME = ?`,
+        [table, index]
+      );
+
+      if (!Array.isArray(rows) || rows.length === 0) {
+        logger.warn(`⚠️  Index '${index}' missing on table '${table}'`);
+      }
+    }
+
+    // Check if default roles exist
+    const [roleRows]: any = await pool.query(
+      'SELECT COUNT(*) as count FROM auth_roles WHERE is_system = TRUE'
+    );
+
+    if (roleRows[0].count === 0) {
+      logger.warn('⚠️  No default roles found. Default roles should be seeded.');
+    }
+
+    logger.info('✅ Database schema validation passed');
+    return pool;
+  } catch (error: any) {
+    logger.error('❌ Database schema validation failed:', error.message);
+    throw error;
+  }
+}
+
+// =============================================================================
+// SERVER STARTUP
+// =============================================================================
+async function startServer() {
+  try {
+    // Validate and initialize database
+    await validateDatabaseSchema();
+    logger.info('✅ Database ready');
+    
+    // Start server
+    server.listen(PORT, () => {
+      appInitialized = true;
+      logger.info(`🚀 Auth service running on port ${PORT}`);
+      logger.info(`📚 API Documentation: http://localhost:${PORT}/api-docs`);
+      logger.info(`💚 Health check: http://localhost:${PORT}/health`);
+      logger.info(`🔐 Features: JWT, RBAC, MFA, OAuth2, OpenID Connect, Session Management`);
+      logger.info(`🗄️  Database: MySQL (${process.env.DB_NAME})`);
+      logger.info(`📦 Redis: ${redisConnected ? 'Connected' : 'In-memory sessions'}`);
+    });
+  } catch (error: any) {
+    logger.error('❌ Failed to start server:', error);
+    logger.error('💡 Check database connection and run migrations');
+    process.exit(1);
+  }
+}
+
+startServer();
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
   logger.info('SIGTERM received, shutting down gracefully');
-  redisClient.quit();
+  if (redisClient && redisConnected) {
+    redisClient.quit().catch(() => {});
+  }
   server.close(() => {
     logger.info('Process terminated');
     process.exit(0);
@@ -266,7 +503,9 @@ process.on('SIGTERM', () => {
 
 process.on('SIGINT', () => {
   logger.info('SIGINT received, shutting down gracefully');
-  redisClient.quit();
+  if (redisClient && redisConnected) {
+    redisClient.quit().catch(() => {});
+  }
   server.close(() => {
     logger.info('Process terminated');
     process.exit(0);

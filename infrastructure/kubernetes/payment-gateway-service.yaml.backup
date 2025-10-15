@@ -1,0 +1,324 @@
+# ============================================================================
+# Payment Gateway Service Deployment
+# ============================================================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-gateway-service
+  namespace: nilecare
+  labels:
+    app: payment-gateway-service
+    tier: payment
+    version: v2.0.0
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: payment-gateway-service
+  template:
+    metadata:
+      labels:
+        app: payment-gateway-service
+        tier: payment
+        version: v2.0.0
+    spec:
+      containers:
+      - name: payment-gateway-service
+        image: nilecare/payment-gateway-service:2.0.0
+        ports:
+        - containerPort: 7001
+          name: http
+          protocol: TCP
+        env:
+        # Service Configuration
+        - name: NODE_ENV
+          value: "production"
+        - name: PORT
+          value: "7001"
+        - name: SERVICE_NAME
+          value: "payment-gateway-service"
+        
+        # Database Configuration
+        - name: DB_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: nilecare-config
+              key: POSTGRES_HOST
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_NAME
+          value: "nilecare_payments"
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: nilecare-secrets
+              key: POSTGRES_USER
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: nilecare-secrets
+              key: POSTGRES_PASSWORD
+        
+        # Kafka Configuration
+        - name: KAFKA_BROKERS
+          valueFrom:
+            configMapKeyRef:
+              name: nilecare-config
+              key: KAFKA_BROKERS
+        
+        # Payment Provider Configuration
+        # Bank Cards
+        - name: BANK_GATEWAY_API_URL
+          valueFrom:
+            configMapKeyRef:
+              name: nilecare-config
+              key: BANK_GATEWAY_API_URL
+        - name: BANK_GATEWAY_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: nilecare-secrets
+              key: BANK_GATEWAY_API_KEY
+        
+        # Zain Cash
+        - name: ZAIN_CASH_API_URL
+          valueFrom:
+            configMapKeyRef:
+              name: nilecare-config
+              key: ZAIN_CASH_API_URL
+        - name: ZAIN_CASH_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: nilecare-secrets
+              key: ZAIN_CASH_API_KEY
+        
+        # MTN Mobile Money
+        - name: MTN_MONEY_API_URL
+          valueFrom:
+            configMapKeyRef:
+              name: nilecare-config
+              key: MTN_MONEY_API_URL
+        - name: MTN_MONEY_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: nilecare-secrets
+              key: MTN_MONEY_API_KEY
+        
+        # Sudani Cash
+        - name: SUDANI_CASH_API_URL
+          valueFrom:
+            configMapKeyRef:
+              name: nilecare-config
+              key: SUDANI_CASH_API_URL
+        - name: SUDANI_CASH_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: nilecare-secrets
+              key: SUDANI_CASH_API_KEY
+        
+        # Encryption
+        - name: ENCRYPTION_KEY
+          valueFrom:
+            secretKeyRef:
+              name: nilecare-secrets
+              key: PAYMENT_ENCRYPTION_KEY
+        
+        # Application URL
+        - name: APP_URL
+          valueFrom:
+            configMapKeyRef:
+              name: nilecare-config
+              key: APP_URL
+        
+        # AWS S3 (for evidence storage)
+        - name: AWS_REGION
+          value: "me-south-1"  # Middle East (Bahrain) - closest to Sudan
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: nilecare-secrets
+              key: AWS_ACCESS_KEY_ID
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: nilecare-secrets
+              key: AWS_SECRET_ACCESS_KEY
+        - name: S3_BUCKET_NAME
+          value: "nilecare-payment-evidence"
+        
+        # Resource Limits
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        
+        # Health Checks
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 7001
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 7001
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        
+        # Security Context
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+
+---
+# ============================================================================
+# Payment Gateway Service - Service
+# ============================================================================
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-gateway-service
+  namespace: nilecare
+  labels:
+    app: payment-gateway-service
+    tier: payment
+spec:
+  type: ClusterIP
+  ports:
+  - port: 7001
+    targetPort: 7001
+    protocol: TCP
+    name: http
+  selector:
+    app: payment-gateway-service
+
+---
+# ============================================================================
+# Payment Gateway Service - Horizontal Pod Autoscaler
+# ============================================================================
+
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: payment-gateway-service-hpa
+  namespace: nilecare
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: payment-gateway-service
+  minReplicas: 3
+  maxReplicas: 20
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 60
+      - type: Pods
+        value: 2
+        periodSeconds: 60
+      selectPolicy: Max
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 60
+
+---
+# ============================================================================
+# Payment Gateway Service - Network Policy
+# ============================================================================
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: payment-gateway-service-network-policy
+  namespace: nilecare
+spec:
+  podSelector:
+    matchLabels:
+      app: payment-gateway-service
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Allow from API Gateway
+  - from:
+    - podSelector:
+        matchLabels:
+          app: kong-gateway
+    ports:
+    - protocol: TCP
+      port: 7001
+  # Allow from billing service
+  - from:
+    - podSelector:
+        matchLabels:
+          app: billing-service
+    ports:
+    - protocol: TCP
+      port: 7001
+  egress:
+  # Allow to PostgreSQL
+  - to:
+    - podSelector:
+        matchLabels:
+          app: postgres
+    ports:
+    - protocol: TCP
+      port: 5432
+  # Allow to Kafka
+  - to:
+    - podSelector:
+        matchLabels:
+          app: kafka
+    ports:
+    - protocol: TCP
+      port: 9092
+  # Allow external payment providers
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: TCP
+      port: 443
+  # Allow DNS
+  - to:
+    - namespaceSelector: {}
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: UDP
+      port: 53
+

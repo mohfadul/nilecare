@@ -132,16 +132,18 @@ app.get('/health', (req, res) => {
       nlpProcessing: true
     }
   });
+});
 
 // Readiness probe
 app.get('/health/ready', async (req, res) => {
   try {
     // Check database if available
-    if (typeof dbPool !== 'undefined' && dbPool) {
-      await dbPool.query('SELECT 1');
-    }
+    // TODO: Implement actual database health check when DB pool is set up
+    // if (typeof dbPool !== 'undefined' && dbPool) {
+    //   await dbPool.query('SELECT 1');
+    // }
     res.status(200).json({ status: 'ready', timestamp: new Date().toISOString() });
-  } catch (error) {
+  } catch (error: any) {
     res.status(503).json({ status: 'not_ready', error: error.message });
   }
 });
@@ -159,8 +161,6 @@ app.get('/metrics', (req, res) => {
   const uptime = Math.floor((Date.now() - serviceStartTime) / 1000);
   res.setHeader('Content-Type', 'text/plain');
   res.send(`service_uptime_seconds ${uptime}`);
-});
-
 });
 
 // API Documentation

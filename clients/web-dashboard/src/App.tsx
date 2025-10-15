@@ -12,16 +12,35 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import DashboardLoading from './components/DashboardLoading';
 
-// Lazy load micro-frontends
-const SuperAdminDashboard = lazy(() => import('./apps/super-admin-dashboard'));
-const HospitalAdminDashboard = lazy(() => import('./apps/hospital-admin-dashboard'));
-const DoctorDashboard = lazy(() => import('./apps/doctor-dashboard'));
-const NurseDashboard = lazy(() => import('./apps/nurse-dashboard'));
-const PharmacistDashboard = lazy(() => import('./apps/pharmacist-dashboard'));
-const LabTechnicianDashboard = lazy(() => import('./apps/lab-technician-dashboard'));
-const ReceptionistDashboard = lazy(() => import('./apps/receptionist-dashboard'));
-const PatientPortal = lazy(() => import('./apps/patient-portal'));
+// Lazy load pages
 const LoginPage = lazy(() => import('./pages/Login'));
+const DashboardPage = lazy(() => import('./pages/Dashboard/Dashboard'));
+const DashboardLayout = lazy(() => import('./components/Layout/DashboardLayout'));
+
+// Lazy load role-based dashboards
+const DoctorDashboard = lazy(() => import('./pages/Dashboards/DoctorDashboard'));
+const NurseDashboard = lazy(() => import('./pages/Dashboards/NurseDashboard'));
+const AdminDashboard = lazy(() => import('./pages/Dashboards/AdminDashboard'));
+const PharmacistDashboard = lazy(() => import('./pages/Dashboards/PharmacistDashboard'));
+const LabTechnicianDashboard = lazy(() => import('./pages/Dashboards/LabTechnicianDashboard'));
+const ReceptionistDashboard = lazy(() => import('./pages/Dashboards/ReceptionistDashboard'));
+const PatientPortal = lazy(() => import('./pages/Dashboards/PatientPortal'));
+const SuperAdminDashboard = lazy(() => import('./pages/Dashboards/SuperAdminDashboard'));
+const MedicalDirectorDashboard = lazy(() => import('./pages/Dashboards/MedicalDirectorDashboard'));
+const ComplianceOfficerDashboard = lazy(() => import('./pages/Dashboards/ComplianceOfficerDashboard'));
+const SudanHealthInspectorDashboard = lazy(() => import('./pages/Dashboards/SudanHealthInspectorDashboard'));
+
+// Lazy load feature pages
+const PatientList = lazy(() => import('./pages/Patients/PatientList'));
+const PatientForm = lazy(() => import('./pages/Patients/PatientForm'));
+const AppointmentList = lazy(() => import('./pages/Appointments/AppointmentList'));
+const AppointmentForm = lazy(() => import('./pages/Appointments/AppointmentForm'));
+const BusinessDashboard = lazy(() => import('./pages/BusinessDashboard'));
+const SOAPNoteForm = lazy(() => import('./pages/Clinical/SOAPNoteForm'));
+const LabOrderForm = lazy(() => import('./pages/Lab/LabOrderForm'));
+const InvoiceList = lazy(() => import('./pages/Billing/InvoiceList'));
+const InventoryList = lazy(() => import('./pages/Inventory/InventoryList'));
+const UserManagement = lazy(() => import('./pages/Admin/UserManagement'));
 
 // Create React Query client
 const queryClient = new QueryClient({
@@ -124,23 +143,18 @@ const createAppTheme = (direction: 'ltr' | 'rtl', mode: 'light' | 'dark') => {
 
 // Main App Component
 const App: React.FC = () => {
-  const [direction, setDirection] = React.useState<'ltr' | 'rtl'>('rtl'); // Default Arabic
   const [mode, setMode] = React.useState<'light' | 'dark'>('light');
 
-  const theme = React.useMemo(() => createAppTheme(direction, mode), [direction, mode]);
+  const theme = React.useMemo(() => createAppTheme('ltr', mode), [mode]);
 
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider theme={theme}>
           <CssBaseline />
-          <I18nProvider defaultLanguage="ar" direction={direction}>
-            <AuthProvider>
-              <Router>
-                <AppRoutes />
-              </Router>
-            </AuthProvider>
-          </I18nProvider>
+          <AuthProvider>
+            <AppRoutes />
+          </AuthProvider>
         </ThemeProvider>
       </QueryClientProvider>
     </ErrorBoundary>
@@ -150,10 +164,12 @@ const App: React.FC = () => {
 // App Routes Component
 const AppRoutes: React.FC = () => {
   return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/*" element={<ProtectedRoutes />} />
-    </Routes>
+    <Suspense fallback={<DashboardLoading />}>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/*" element={<ProtectedRoutes />} />
+      </Routes>
+    </Suspense>
   );
 };
 
@@ -171,82 +187,103 @@ const ProtectedRoutes: React.FC = () => {
 
   return (
     <Routes>
-      <Route path="/" element={<DashboardRouter />} />
-      <Route path="/dashboard/*" element={<DashboardRouter />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="/" element={<DashboardLayout />}>
+        <Route index element={<Navigate to="/dashboard" replace />} />
+        <Route path="dashboard" element={<RoleBasedDashboard />} />
+        
+        {/* Feature Routes */}
+        <Route path="dashboard/patients" element={<PatientList />} />
+        <Route path="dashboard/patients/new" element={<PatientForm />} />
+        <Route path="dashboard/patients/:id" element={<PatientForm />} />
+        <Route path="dashboard/patients/:id/edit" element={<PatientForm />} />
+        
+        <Route path="dashboard/appointments" element={<AppointmentList />} />
+        <Route path="dashboard/appointments/new" element={<AppointmentForm />} />
+        <Route path="dashboard/appointments/:id" element={<AppointmentForm />} />
+        <Route path="dashboard/appointments/:id/edit" element={<AppointmentForm />} />
+        
+        <Route path="dashboard/business" element={<BusinessDashboard />} />
+        
+        <Route path="dashboard/clinical-notes" element={<SOAPNoteForm />} />
+        <Route path="dashboard/medications" element={<DashboardPage />} />
+        
+        <Route path="dashboard/lab-orders" element={<LabOrderForm />} />
+        
+        <Route path="dashboard/billing" element={<InvoiceList />} />
+        
+        <Route path="dashboard/inventory" element={<InventoryList />} />
+        
+        <Route path="dashboard/admin/users" element={<UserManagement />} />
+        
+        <Route path="dashboard/settings" element={<DashboardPage />} />
+      </Route>
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
 };
 
-// Dynamic Dashboard Router
-const DashboardRouter: React.FC = () => {
-  const { user, facility } = useAuth();
+// Role-Based Dashboard Router
+const RoleBasedDashboard: React.FC = () => {
+  const { user } = useAuth();
 
-  const getDashboardComponent = (): JSX.Element => {
-    if (!user || !user.role) {
-      return <Navigate to="/login" replace />;
+  // Map user roles to their respective dashboards
+  const getDashboardByRole = () => {
+    const role = user?.role?.toLowerCase().replace(/[_\s]/g, '');
+
+    switch (role) {
+      case 'superadmin':
+      case 'super-admin':
+        return <SuperAdminDashboard />;
+      
+      case 'medicaldirector':
+      case 'medical-director':
+        return <MedicalDirectorDashboard />;
+      
+      case 'complianceofficer':
+      case 'compliance-officer':
+        return <ComplianceOfficerDashboard />;
+      
+      case 'sudanhealthinspector':
+      case 'sudan-health-inspector':
+      case 'healthinspector':
+        return <SudanHealthInspectorDashboard />;
+      
+      case 'doctor':
+      case 'physician':
+        return <DoctorDashboard />;
+      
+      case 'nurse':
+        return <NurseDashboard />;
+      
+      case 'admin':
+      case 'systemadmin':
+      case 'hospitaladmin':
+        return <AdminDashboard />;
+      
+      case 'pharmacist':
+        return <PharmacistDashboard />;
+      
+      case 'labtechnician':
+      case 'labtech':
+        return <LabTechnicianDashboard />;
+      
+      case 'receptionist':
+        return <ReceptionistDashboard />;
+      
+      case 'patient':
+        return <PatientPortal />;
+      
+      default:
+        // Fallback to generic dashboard
+        return <DashboardPage />;
     }
-
-    const role = user.role;
-    const facilityType = facility?.type || 'hospital';
-
-    // Role-based dashboard mapping
-    const dashboardMap: Record<string, JSX.Element> = {
-      // Administrative Roles
-      super_admin: <SuperAdminDashboard />,
-      system_admin: <SuperAdminDashboard />,
-      
-      // Facility Admin Roles (by facility type)
-      hospital_admin: <HospitalAdminDashboard />,
-      clinic_admin: <HospitalAdminDashboard />, // Same as hospital
-      dental_admin: <DentalAdminDashboard />,
-      lab_admin: <LabAdminDashboard />,
-      pharmacy_admin: <PharmacyAdminDashboard />,
-      
-      // Clinical Roles
-      physician: <DoctorDashboard />,
-      doctor: <DoctorDashboard />,
-      dentist: <DentistDashboard />,
-      nurse: <NurseDashboard />,
-      pharmacist: <PharmacistDashboard />,
-      lab_technician: <LabTechnicianDashboard />,
-      radiologist: <RadiologistDashboard />,
-      
-      // Administrative Staff
-      accountant: <AccountantDashboard />,
-      billing_specialist: <BillingDashboard />,
-      receptionist: <ReceptionistDashboard />,
-      
-      // Patient
-      patient: <PatientPortal />,
-      
-      // Sudan-specific roles
-      medical_director: <MedicalDirectorDashboard />,
-      compliance_officer: <ComplianceDashboard />,
-      sudan_health_inspector: <HealthInspectorDashboard />
-    };
-
-    return dashboardMap[role] || <DefaultDashboard role={role} />;
   };
 
   return (
     <Suspense fallback={<DashboardLoading />}>
-      {getDashboardComponent()}
+      {getDashboardByRole()}
     </Suspense>
   );
 };
-
-// Lazy load additional dashboards
-const DentalAdminDashboard = lazy(() => import('./apps/dental-admin-dashboard'));
-const LabAdminDashboard = lazy(() => import('./apps/lab-admin-dashboard'));
-const PharmacyAdminDashboard = lazy(() => import('./apps/pharmacy-admin-dashboard'));
-const DentistDashboard = lazy(() => import('./apps/dentist-dashboard'));
-const RadiologistDashboard = lazy(() => import('./apps/radiologist-dashboard'));
-const AccountantDashboard = lazy(() => import('./apps/accountant-dashboard'));
-const BillingDashboard = lazy(() => import('./apps/billing-dashboard'));
-const MedicalDirectorDashboard = lazy(() => import('./apps/medical-director-dashboard'));
-const ComplianceDashboard = lazy(() => import('./apps/compliance-dashboard'));
-const HealthInspectorDashboard = lazy(() => import('./apps/health-inspector-dashboard'));
-const DefaultDashboard = lazy(() => import('./apps/default-dashboard'));
 
 export default App;

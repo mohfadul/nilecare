@@ -8,21 +8,21 @@ import { Request, Response, NextFunction } from 'express';
 import { PHIAuditService } from '../services/PHIAuditService';
 import { v4 as uuidv4 } from 'uuid';
 
-// Extend Express Request type
+// Note: Express.Request.user is defined in auth.ts middleware
+// This file uses the JwtPayload interface from auth middleware
+// Additional PHI-specific metadata can be added to req.phiAuditMetadata
+
 declare global {
   namespace Express {
     interface Request {
-      user?: {
-        id: string;
-        name?: string;
-        role?: string;
-        facilityId: string;
-        tenantId: string;
-        permissions?: string[];
-      };
       requestId?: string;
       sessionId?: string;
       startTime?: number;
+      phiAuditMetadata?: {
+        name?: string;
+        facilityId?: string;
+        tenantId?: string;
+      };
     }
   }
 }
@@ -90,8 +90,8 @@ export const auditPHIAccess = (config: PHIResourceConfig) => {
             
             if (success) {
               await phiAuditService.logPHIAccess({
-                userId: req.user?.id || 'anonymous',
-                userName: req.user?.name,
+                userId: req.user?.userId || 'anonymous',
+                userName: req.phiAuditMetadata?.name || req.user?.email || 'unknown',
                 userRole: req.user?.role,
                 patientId,
                 action: finalAction,
@@ -99,19 +99,20 @@ export const auditPHIAccess = (config: PHIResourceConfig) => {
                 resourceId: req.params.id || patientId,
                 ipAddress: getClientIp(req),
                 userAgent: req.get('user-agent') || 'unknown',
-                facilityId: req.user?.facilityId || 'unknown',
-                tenantId: req.user?.tenantId || 'unknown',
+                facilityId: req.phiAuditMetadata?.facilityId || 'unknown',
+                tenantId: req.phiAuditMetadata?.tenantId || req.user?.organizationId || 'unknown',
                 sessionId: req.sessionId,
                 requestId: req.requestId,
                 accessReason: req.body?.access_reason || req.query?.reason as string,
                 dataFields: config.sensitiveFields,
+                success: true,
                 duration
               });
             } else {
               await phiAuditService.logFailedPHIAccess(
                 {
-                  userId: req.user?.id || 'anonymous',
-                  userName: req.user?.name,
+                  userId: req.user?.userId || 'anonymous',
+                  userName: req.phiAuditMetadata?.name || req.user?.email || 'unknown',
                   userRole: req.user?.role,
                   patientId,
                   action: finalAction,
@@ -119,8 +120,8 @@ export const auditPHIAccess = (config: PHIResourceConfig) => {
                   resourceId: req.params.id || patientId,
                   ipAddress: getClientIp(req),
                   userAgent: req.get('user-agent') || 'unknown',
-                  facilityId: req.user?.facilityId || 'unknown',
-                  tenantId: req.user?.tenantId || 'unknown',
+                  facilityId: req.phiAuditMetadata?.facilityId || 'unknown',
+                  tenantId: req.phiAuditMetadata?.tenantId || req.user?.organizationId || 'unknown',
                   sessionId: req.sessionId,
                   requestId: req.requestId,
                   duration
@@ -169,7 +170,7 @@ export const checkPatientConsent = async (
   next: NextFunction
 ) => {
   const patientId = req.params.patientId || req.body?.patient_id;
-  const userId = req.user?.id;
+  const userId = req.user?.userId;
 
   if (!patientId || !userId) {
     return next();
@@ -192,7 +193,7 @@ export const checkPatientConsent = async (
     const result = await pool.query(consentQuery, [
       patientId,
       userId,
-      req.user?.tenantId
+      req.phiAuditMetadata?.tenantId || req.user?.organizationId
     ]);
 
     if (result.rows.length === 0) {
@@ -305,11 +306,11 @@ async function logConsentViolation(req: Request, patientId: string): Promise<voi
       ) VALUES ($1, $2, $3, $4, $5, $6, $7)
     `, [
       req.user?.facilityId || 'unknown',
-      req.user?.tenantId || 'unknown',
+      req.phiAuditMetadata?.tenantId || req.user?.organizationId || 'unknown',
       'unauthorized_access',
       'high',
       'Attempted access without patient consent',
-      req.user?.id || 'anonymous',
+      req.user?.userId || 'anonymous',
       patientId
     ]);
   } catch (error) {

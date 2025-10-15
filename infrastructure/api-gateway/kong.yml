@@ -208,18 +208,75 @@ services:
               bandwidth_metrics: true
               upstream_health_metrics: true
 
-  # Authentication Service
+  # NileCare Auth Service (Enterprise Authentication)
   - name: auth-service
-    url: http://auth-service:3004
+    url: http://auth-service:3001
     routes:
-      - name: auth-routes
+      # Public auth endpoints (no JWT required)
+      - name: auth-public-routes
         paths:
-          - /api/v1/auth
+          - /api/v1/auth/register
+          - /api/v1/auth/login
+          - /api/v1/auth/refresh-token
+          - /api/v1/auth/password-reset
+          - /api/v1/auth/verify-email
+          - /api/v1/auth/csrf-token
+          - /auth/oauth2
+          - /auth/oidc
+        methods:
+          - GET
+          - POST
+          - OPTIONS
+        strip_path: false
+        plugins:
+          - name: cors
+            config:
+              origins:
+                - "*"
+              methods:
+                - GET
+                - POST
+                - OPTIONS
+              headers:
+                - Accept
+                - Content-Type
+                - Authorization
+                - X-CSRF-Token
+                - X-Requested-With
+              exposed_headers:
+                - X-Auth-Token
+                - Set-Cookie
+              credentials: true
+              max_age: 3600
+          - name: rate-limiting
+            config:
+              minute: 10
+              hour: 100
+              policy: local
+              fault_tolerant: true
+          - name: prometheus
+            config:
+              per_consumer: false
+              status_code_metrics: true
+              latency_metrics: true
+      
+      # Protected auth endpoints (JWT required)
+      - name: auth-protected-routes
+        paths:
+          - /api/v1/auth/me
+          - /api/v1/auth/logout
+          - /api/v1/auth/password/change
+          - /api/v1/users
+          - /api/v1/roles
+          - /api/v1/sessions
+          - /api/v1/mfa
         methods:
           - GET
           - POST
           - PUT
           - PATCH
+          - DELETE
+          - OPTIONS
         strip_path: false
         plugins:
           - name: cors
@@ -231,35 +288,29 @@ services:
                 - POST
                 - PUT
                 - PATCH
+                - DELETE
                 - OPTIONS
               headers:
                 - Accept
-                - Accept-Version
-                - Content-Length
-                - Content-MD5
                 - Content-Type
-                - Date
                 - Authorization
+                - X-CSRF-Token
                 - X-Requested-With
               exposed_headers:
                 - X-Auth-Token
               credentials: true
               max_age: 3600
-              preflight_continue: false
           - name: rate-limiting
             config:
-              minute: 20
-              hour: 200
+              minute: 60
+              hour: 500
               policy: local
               fault_tolerant: true
-              hide_client_headers: false
           - name: prometheus
             config:
               per_consumer: true
               status_code_metrics: true
               latency_metrics: true
-              bandwidth_metrics: true
-              upstream_health_metrics: true
 
   # Web Dashboard Service
   - name: web-dashboard
