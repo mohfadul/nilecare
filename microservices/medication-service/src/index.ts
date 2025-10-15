@@ -37,6 +37,12 @@ import { setupEventHandlers } from './events/handlers';
 
 dotenv.config();
 
+// ✅ NEW: Import response wrapper middleware
+import {
+  requestIdMiddleware,
+  errorHandlerMiddleware,
+} from '@nilecare/response-wrapper';
+
 // Environment validation
 const REQUIRED_ENV_VARS = ['DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASSWORD'];
 function validateEnvironment() {
@@ -100,6 +106,9 @@ const swaggerOptions = {
 };
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
+
+// ✅ NEW: Add request ID middleware FIRST
+app.use(requestIdMiddleware);
 
 // Middleware
 app.use(helmet({
@@ -277,8 +286,8 @@ io.on('connection', (socket) => {
   });
 });
 
-// Error handling
-app.use(errorHandler);
+// ✅ NEW: Use standardized error handler
+app.use(errorHandlerMiddleware({ service: 'medication-service' }));
 
 // 404 handler
 app.use('*', (req, res) => {
@@ -294,7 +303,8 @@ setupEventHandlers(io, marService, highAlertService);
 
 // Start server
 server.listen(PORT, () => {
-  logger.info(`Medication service running on port ${PORT}`);
+  logger.info(`💊 Medication service running on port ${PORT}`);
+  logger.info('✨ Response Wrapper: ENABLED (Request ID tracking active)');
   logger.info(`API Documentation available at http://localhost:${PORT}/api-docs`);
   logger.info(`Health check available at http://localhost:${PORT}/health`);
   logger.info(`Features enabled: MAR, Barcode Verification, Medication Reconciliation, High-Alert Monitoring`);

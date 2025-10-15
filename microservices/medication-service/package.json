@@ -19,6 +19,7 @@
     "db:create": "mysql -u root -p -e \"CREATE DATABASE IF NOT EXISTS nilecare_medication CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;\""
   },
   "dependencies": {
+    "@nilecare/response-wrapper": "file:../../packages/@nilecare/response-wrapper",
     "express": "^4.18.2",
     "cors": "^2.8.5",
     "helmet": "^7.1.0",

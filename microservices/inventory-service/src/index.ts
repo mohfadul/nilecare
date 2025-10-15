@@ -35,6 +35,12 @@ import { EventService } from './services/EventService';
 // Load environment variables
 dotenv.config();
 
+// ✅ NEW: Import response wrapper middleware
+import {
+  requestIdMiddleware,
+  errorHandlerMiddleware,
+} from '@nilecare/response-wrapper';
+
 // Environment validation
 const REQUIRED_ENV_VARS = ['DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASSWORD'];
 function validateEnvironment() {
@@ -69,6 +75,9 @@ const limiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+// ✅ NEW: Add request ID middleware FIRST
+app.use(requestIdMiddleware);
 
 // Middleware
 app.use(helmet());
@@ -319,8 +328,8 @@ cron.schedule('0 23 * * *', async () => {
   }
 });
 
-// Error handling middleware
-app.use(errorHandler);
+// ✅ NEW: Use standardized error handler
+app.use(errorHandlerMiddleware({ service: 'inventory-service' }));
 
 // 404 handler
 app.use('*', (req, res) => {
@@ -334,6 +343,7 @@ app.use('*', (req, res) => {
 // Start server
 server.listen(PORT, () => {
   console.log(`📦 Inventory Service running on port ${PORT}`);
+  console.log('✨ Response Wrapper: ENABLED (Request ID tracking active)');
   console.log(`📚 API Documentation available at http://localhost:${PORT}/api-docs`);
   console.log(`🔌 WebSocket server running on port ${PORT}`);
 });
