@@ -3,6 +3,16 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
 import { LoginPage } from './pages/auth/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
+import { PatientListPage } from './pages/patients/PatientListPage';
+import { PatientDetailsPage } from './pages/patients/PatientDetailsPage';
+import { PatientFormPage } from './pages/patients/PatientFormPage';
+import { AppointmentListPage } from './pages/appointments/AppointmentListPage';
+import { AppointmentBookingPage } from './pages/appointments/AppointmentBookingPage';
+import { LabOrderListPage } from './pages/clinical/labs/LabOrderListPage';
+import { LabOrderFormPage } from './pages/clinical/labs/LabOrderFormPage';
+import { LabResultsPage } from './pages/clinical/labs/LabResultsPage';
+import { MedicationListPage } from './pages/clinical/medications/MedicationListPage';
+import { PrescriptionFormPage } from './pages/clinical/medications/PrescriptionFormPage';
 import { AuthGuard } from './components/auth/AuthGuard';
 import { AppLayout } from './components/layout/AppLayout';
 
@@ -51,6 +61,124 @@ function App() {
               }
             />
 
+            {/* Patient Routes */}
+            <Route
+              path="/patients"
+              element={
+                <AuthGuard>
+                  <AppLayout>
+                    <PatientListPage />
+                  </AppLayout>
+                </AuthGuard>
+              }
+            />
+            <Route
+              path="/patients/new"
+              element={
+                <AuthGuard>
+                  <AppLayout>
+                    <PatientFormPage />
+                  </AppLayout>
+                </AuthGuard>
+              }
+            />
+            <Route
+              path="/patients/:id"
+              element={
+                <AuthGuard>
+                  <AppLayout>
+                    <PatientDetailsPage />
+                  </AppLayout>
+                </AuthGuard>
+              }
+            />
+            <Route
+              path="/patients/:id/edit"
+              element={
+                <AuthGuard>
+                  <AppLayout>
+                    <PatientFormPage />
+                  </AppLayout>
+                </AuthGuard>
+              }
+            />
+
+            {/* Appointment Routes */}
+            <Route
+              path="/appointments"
+              element={
+                <AuthGuard>
+                  <AppLayout>
+                    <AppointmentListPage />
+                  </AppLayout>
+                </AuthGuard>
+              }
+            />
+            <Route
+              path="/appointments/new"
+              element={
+                <AuthGuard>
+                  <AppLayout>
+                    <AppointmentBookingPage />
+                  </AppLayout>
+                </AuthGuard>
+              }
+            />
+
+            {/* Clinical Routes - Labs */}
+            <Route
+              path="/clinical/labs"
+              element={
+                <AuthGuard>
+                  <AppLayout>
+                    <LabOrderListPage />
+                  </AppLayout>
+                </AuthGuard>
+              }
+            />
+            <Route
+              path="/clinical/labs/new"
+              element={
+                <AuthGuard>
+                  <AppLayout>
+                    <LabOrderFormPage />
+                  </AppLayout>
+                </AuthGuard>
+              }
+            />
+            <Route
+              path="/clinical/labs/:id"
+              element={
+                <AuthGuard>
+                  <AppLayout>
+                    <LabResultsPage />
+                  </AppLayout>
+                </AuthGuard>
+              }
+            />
+
+            {/* Clinical Routes - Medications */}
+            <Route
+              path="/clinical/medications"
+              element={
+                <AuthGuard>
+                  <AppLayout>
+                    <MedicationListPage />
+                  </AppLayout>
+                </AuthGuard>
+              }
+            />
+            <Route
+              path="/clinical/medications/new"
+              element={
+                <AuthGuard>
+                  <AppLayout>
+                    <PrescriptionFormPage />
+                  </AppLayout>
+                </AuthGuard>
+              }
+            />
+
             {/* Redirect root to dashboard */}
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
@@ -64,4 +192,3 @@ function App() {
 }
 
 export default App;
-

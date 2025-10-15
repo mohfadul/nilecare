@@ -1,67 +1,76 @@
-import { Container, Typography, Paper, Box, Grid } from '@mui/material';
 import { authStore } from '../store/authStore';
+import {
+  DoctorDashboard,
+  NurseDashboard,
+  ReceptionistDashboard,
+  AdminDashboard,
+  BillingClerkDashboard,
+  LabTechnicianDashboard,
+  PharmacistDashboard,
+} from './dashboards';
+import { Container, Typography, Paper, Box } from '@mui/material';
 
 export function DashboardPage() {
   const user = authStore((state) => state.user);
 
-  return (
-    <Container maxWidth="xl">
-      <Typography variant="h4" gutterBottom>
-        Welcome to NileCare, {user?.firstName}!
-      </Typography>
-
-      <Grid container spacing={3} sx={{ mt: 2 }}>
-        <Grid item xs={12} md={4}>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Quick Stats
-            </Typography>
-            <Typography variant="body2">
-              Your dashboard is being prepared...
-            </Typography>
-          </Paper>
-        </Grid>
-
-        <Grid item xs={12} md={4}>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Recent Activities
-            </Typography>
-            <Typography variant="body2">
-              No recent activities
-            </Typography>
-          </Paper>
-        </Grid>
-
-        <Grid item xs={12} md={4}>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Notifications
-            </Typography>
-            <Typography variant="body2">
-              No new notifications
-            </Typography>
-          </Paper>
-        </Grid>
-      </Grid>
-
-      <Box sx={{ mt: 4 }}>
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            System Information
+  // Route to role-specific dashboard
+  switch (user?.role?.toLowerCase()) {
+    case 'doctor':
+    case 'physician':
+      return <DoctorDashboard />;
+    
+    case 'nurse':
+      return <NurseDashboard />;
+    
+    case 'receptionist':
+      return <ReceptionistDashboard />;
+    
+    case 'admin':
+    case 'super_admin':
+    case 'system_admin':
+      return <AdminDashboard />;
+    
+    case 'billing_clerk':
+    case 'billing':
+      return <BillingClerkDashboard />;
+    
+    case 'lab_technician':
+    case 'lab_tech':
+    case 'laboratory':
+      return <LabTechnicianDashboard />;
+    
+    case 'pharmacist':
+    case 'pharmacy':
+      return <PharmacistDashboard />;
+    
+    default:
+      // Generic dashboard for unknown roles
+      return (
+        <Container maxWidth="xl">
+          <Typography variant="h4" gutterBottom>
+            Welcome to NileCare, {user?.firstName}!
           </Typography>
-          <Typography variant="body2">
-            <strong>User ID:</strong> {user?.id}
-            <br />
-            <strong>Email:</strong> {user?.email}
-            <br />
-            <strong>Role:</strong> {user?.role}
-            <br />
-            <strong>Status:</strong> {user?.status}
-          </Typography>
-        </Paper>
-      </Box>
-    </Container>
-  );
+          <Paper sx={{ p: 3, mt: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              Dashboard Not Configured
+            </Typography>
+            <Typography variant="body1" color="text.secondary">
+              Your role ({user?.role}) does not have a specific dashboard configured yet.
+              Please contact your administrator.
+            </Typography>
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="body2">
+                <strong>User ID:</strong> {user?.id}
+                <br />
+                <strong>Email:</strong> {user?.email}
+                <br />
+                <strong>Role:</strong> {user?.role}
+                <br />
+                <strong>Status:</strong> {user?.status}
+              </Typography>
+            </Box>
+          </Paper>
+        </Container>
+      );
+  }
 }
-

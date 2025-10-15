@@ -21,6 +21,8 @@ import {
   Payment,
   Settings,
   Logout,
+  Science,
+  Medication,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { authStore } from '../../store/authStore';
@@ -49,10 +51,11 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   const menuItems = [
     { text: 'Dashboard', icon: <Dashboard />, path: '/dashboard', roles: ['*'] },
-    { text: 'Patients', icon: <People />, path: '/patients', roles: ['doctor', 'nurse', 'receptionist'] },
-    { text: 'Appointments', icon: <CalendarToday />, path: '/appointments', roles: ['doctor', 'nurse', 'receptionist'] },
-    { text: 'Clinical', icon: <LocalHospital />, path: '/clinical', roles: ['doctor', 'nurse'] },
-    { text: 'Billing', icon: <Payment />, path: '/billing', roles: ['billing_clerk', 'admin'] },
+    { text: 'Patients', icon: <People />, path: '/patients', roles: ['doctor', 'nurse', 'receptionist', 'admin'] },
+    { text: 'Appointments', icon: <CalendarToday />, path: '/appointments', roles: ['doctor', 'nurse', 'receptionist', 'admin'] },
+    { text: 'Lab Orders', icon: <Science />, path: '/clinical/labs', roles: ['doctor', 'nurse', 'lab_technician', 'lab_tech', 'laboratory', 'admin'] },
+    { text: 'Medications', icon: <Medication />, path: '/clinical/medications', roles: ['doctor', 'nurse', 'pharmacist', 'pharmacy', 'admin'] },
+    { text: 'Billing', icon: <Payment />, path: '/billing', roles: ['billing_clerk', 'billing', 'admin'] },
     { text: 'Settings', icon: <Settings />, path: '/settings', roles: ['admin', 'super_admin'] },
   ];
 
