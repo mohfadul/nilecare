@@ -27,6 +27,7 @@
     "@nilecare/logger": "file:../../packages/@nilecare/logger",
     "@nilecare/config-validator": "file:../../packages/@nilecare/config-validator",
     "@nilecare/error-handler": "file:../../packages/@nilecare/error-handler",
+    "@nilecare/response-wrapper": "file:../../packages/@nilecare/response-wrapper",
     "argon2": "^0.31.2",
     "axios": "^1.6.0",
     "bcrypt": "^6.0.0",
@@ -68,7 +69,6 @@
     "winston": "^3.11.0"
   },
   "devDependencies": {
-    "node-flyway": "^3.0.7",
     "@types/bcrypt": "^6.0.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/compression": "^1.7.5",
