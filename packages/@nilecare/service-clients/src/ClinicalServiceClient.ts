@@ -48,6 +48,14 @@ export class ClinicalServiceClient {
   }
 
   /**
+   * Set request ID for correlation tracking
+   * Propagates request ID across service calls for end-to-end tracing
+   */
+  setRequestId(requestId: string) {
+    this.axiosInstance.defaults.headers.common['X-Request-ID'] = requestId;
+  }
+
+  /**
    * Get patient count statistics
    */
   async getPatientsCount(): Promise<number> {

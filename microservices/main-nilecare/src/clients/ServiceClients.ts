@@ -69,6 +69,37 @@ export class ServiceClientsManager {
   }
 
   /**
+   * Set request ID for correlation tracking
+   * Propagates request ID across all service calls for end-to-end tracing
+   */
+  setRequestId(requestId: string) {
+    // Set request ID header for all clients
+    const clients = [
+      this.clinical,
+      this.auth,
+      this.lab,
+      this.medication,
+      this.inventory,
+      this.appointment,
+    ];
+
+    clients.forEach(client => {
+      if (client && typeof client.setRequestId === 'function') {
+        client.setRequestId(requestId);
+      }
+    });
+  }
+
+  /**
+   * Set both auth token and request ID
+   * Convenience method for setting up clients for a request
+   */
+  setupForRequest(token: string, requestId: string) {
+    this.setAuthToken(token);
+    this.setRequestId(requestId);
+  }
+
+  /**
    * Get dashboard stats from all services
    * Aggregates data from multiple microservices
    */
