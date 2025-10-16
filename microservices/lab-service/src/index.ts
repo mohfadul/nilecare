@@ -23,6 +23,7 @@ import criticalValueRoutes from './routes/critical-values';
 import qualityControlRoutes from './routes/quality-control';
 import specimenRoutes from './routes/specimens';
 import instrumentRoutes from './routes/instruments';
+import statsRoutes from './routes/stats';
 
 // Services
 import { LabOrderService } from './services/LabOrderService';
@@ -184,6 +185,7 @@ app.use('/api/v1/critical-values', authMiddleware, criticalValueRoutes);
 app.use('/api/v1/quality-control', authMiddleware, qualityControlRoutes);
 app.use('/api/v1/specimens', authMiddleware, specimenRoutes);
 app.use('/api/v1/instruments', authMiddleware, instrumentRoutes);
+app.use('/api/v1/stats', authMiddleware, statsRoutes);
 
 // Real-time lab result processing endpoint
 app.post('/api/v1/process-lab-result', authMiddleware, async (req, res) => {

@@ -23,6 +23,7 @@ import reconciliationRoutes from './routes/reconciliation';
 import highAlertRoutes from './routes/high-alert-monitoring';
 import medicationRoutes from './routes/medications';
 import administrationRoutes from './routes/administration';
+import statsRoutes from './routes/stats';
 
 // Services
 import { MARService } from './services/MARService';
@@ -183,6 +184,7 @@ app.use('/api/v1/reconciliation', authMiddleware, reconciliationRoutes);
 app.use('/api/v1/high-alert-monitoring', authMiddleware, highAlertRoutes);
 app.use('/api/v1/medications', authMiddleware, medicationRoutes);
 app.use('/api/v1/administration', authMiddleware, administrationRoutes);
+app.use('/api/v1/stats', authMiddleware, statsRoutes);
 
 // Real-time medication administration endpoint
 app.post('/api/v1/medication-administration', authMiddleware, async (req, res) => {

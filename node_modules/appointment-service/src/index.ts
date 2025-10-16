@@ -26,6 +26,7 @@ import scheduleRoutes from './routes/schedules';
 import resourceRoutes from './routes/resources';
 import waitlistRoutes from './routes/waitlist';
 import reminderRoutes from './routes/reminders';
+import statsRoutes from './routes/stats';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
@@ -175,6 +176,7 @@ app.use('/api/v1/schedules', scheduleRoutes);
 app.use('/api/v1/resources', resourceRoutes);
 app.use('/api/v1/waitlist', waitlistRoutes);
 app.use('/api/v1/reminders', reminderRoutes);
+app.use('/api/v1/stats', statsRoutes);
 
 // Root route
 app.get('/', (req, res) => {

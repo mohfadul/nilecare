@@ -1,107 +1,159 @@
+import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
+import CircuitBreaker from 'opossum';
+import { NileCareResponse } from '@nilecare/response-wrapper';
+
 /**
  * Clinical Service Client
- * API client for Clinical/EHR Service communication
+ * Provides type-safe access to Clinical Service APIs
  */
+export class ClinicalServiceClient {
+  private baseUrl: string;
+  private axiosInstance: AxiosInstance;
+  private breaker: CircuitBreaker<[AxiosRequestConfig], any>;
 
-import { BaseServiceClient, ServiceClientConfig } from './BaseServiceClient';
+  constructor(baseUrl: string) {
+    this.baseUrl = baseUrl;
+    
+    this.axiosInstance = axios.create({
+      baseURL: baseUrl,
+      timeout: 10000,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
 
-export interface Patient {
-  id: string;
-  mrn: string;
-  firstName: string;
-  lastName: string;
-  dateOfBirth: string;
-  gender: string;
-  phone?: string;
-  email?: string;
-  isActive: boolean;
-}
+    // Circuit breaker for resilience
+    this.breaker = new CircuitBreaker(
+      async (config: AxiosRequestConfig) => {
+        return await this.axiosInstance.request(config);
+      },
+      {
+        timeout: 10000,
+        errorThresholdPercentage: 50,
+        resetTimeout: 30000,
+        volumeThreshold: 3,
+      }
+    );
 
-export interface Encounter {
-  id: string;
-  patientId: string;
-  encounterNumber: string;
-  encounterType: string;
-  status: string;
-  admissionDate: string;
-  dischargeDate?: string;
-}
-
-export interface PatientSummary {
-  patient: Patient;
-  activeEncounter?: Encounter;
-  activeDiagnoses: any[];
-  activeMedications: any[];
-  allergies: any[];
-  recentVitals: any[];
-}
-
-export class ClinicalServiceClient extends BaseServiceClient {
-  constructor(config: ServiceClientConfig) {
-    super(config);
+    this.breaker.on('open', () => {
+      console.error('Circuit breaker OPEN for clinical-service');
+    });
   }
 
   /**
-   * Get patient by ID
+   * Set authorization token for requests
    */
-  async getPatient(patientId: string): Promise<Patient> {
-    return await this.get<Patient>(`/api/v1/patients/${patientId}`);
+  setAuthToken(token: string) {
+    this.axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${token}`;
   }
 
   /**
-   * Get patient summary
+   * Get patient count statistics
    */
-  async getPatientSummary(patientId: string): Promise<PatientSummary> {
-    return await this.get<PatientSummary>(`/api/v1/patients/${patientId}/summary`);
+  async getPatientsCount(): Promise<number> {
+    const response = await this.breaker.fire({
+      method: 'GET',
+      url: '/api/v1/stats/patients/count',
+    });
+    return response.data.data.count;
   }
 
   /**
-   * Get encounter
+   * Get recent patients
    */
-  async getEncounter(encounterId: string): Promise<Encounter> {
-    return await this.get<Encounter>(`/api/v1/encounters/${encounterId}`);
+  async getRecentPatients(limit: number = 20): Promise<any[]> {
+    const response = await this.breaker.fire({
+      method: 'GET',
+      url: '/api/v1/patients/recent',
+      params: { limit },
+    });
+    return response.data.data.patients;
   }
 
   /**
-   * Validate patient exists
+   * Get single patient by ID
    */
-  async validatePatientExists(patientId: string): Promise<boolean> {
-    try {
-      await this.getPatient(patientId);
-      return true;
-    } catch (error) {
-      return false;
-    }
+  async getPatient(id: number): Promise<any> {
+    const response = await this.breaker.fire({
+      method: 'GET',
+      url: `/api/v1/patients/${id}`,
+    });
+    return response.data.data.patient;
+  }
+
+  /**
+   * Get patients list with pagination
+   */
+  async getPatients(params: {
+    page?: number;
+    limit?: number;
+    search?: string;
+  }): Promise<NileCareResponse<any>> {
+    const response = await this.breaker.fire({
+      method: 'GET',
+      url: '/api/v1/patients',
+      params,
+    });
+    return response.data;
   }
 
   /**
    * Search patients
    */
-  async searchPatients(query: {
-    mrn?: string;
-    name?: string;
-    dob?: string;
-    phone?: string;
-  }): Promise<Patient[]> {
-    return await this.get<Patient[]>('/api/v1/patients/search', {
-      params: query
+  async searchPatients(query: string, filters?: any): Promise<any[]> {
+    const response = await this.breaker.fire({
+      method: 'GET',
+      url: '/api/v1/patients/search',
+      params: { q: query, ...filters },
     });
+    return response.data.data.patients;
   }
 
   /**
-   * Create patient
+   * Create new patient
    */
-  async createPatient(patientData: Partial<Patient>): Promise<Patient> {
-    return await this.post<Patient>('/api/v1/patients', patientData);
+  async createPatient(data: any): Promise<any> {
+    const response = await this.breaker.fire({
+      method: 'POST',
+      url: '/api/v1/patients',
+      data,
+    });
+    return response.data.data.patient;
   }
 
   /**
    * Update patient
    */
-  async updatePatient(patientId: string, updates: Partial<Patient>): Promise<Patient> {
-    return await this.patch<Patient>(`/api/v1/patients/${patientId}`, updates);
+  async updatePatient(id: number, data: any): Promise<any> {
+    const response = await this.breaker.fire({
+      method: 'PUT',
+      url: `/api/v1/patients/${id}`,
+      data,
+    });
+    return response.data.data.patient;
+  }
+
+  /**
+   * Get encounters count
+   */
+  async getEncountersCount(): Promise<number> {
+    const response = await this.breaker.fire({
+      method: 'GET',
+      url: '/api/v1/stats/encounters/count',
+    });
+    return response.data.data.count;
+  }
+
+  /**
+   * Get today's encounters
+   */
+  async getTodayEncounters(): Promise<any[]> {
+    const response = await this.breaker.fire({
+      method: 'GET',
+      url: '/api/v1/encounters/today',
+    });
+    return response.data.data.encounters;
   }
 }
 
 export default ClinicalServiceClient;
-

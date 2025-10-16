@@ -39,6 +39,7 @@ import sessionRoutes from './routes/sessions';
 import mfaRoutes from './routes/mfa';
 import oauthRoutes from './routes/oauth';
 import integrationRoutes from './routes/integration';
+import statsRoutes from './routes/stats';
 
 // Services
 import { AuthService } from './services/AuthService';
@@ -358,6 +359,7 @@ app.use('/api/v1/roles', roleRoutes);
 app.use('/api/v1/sessions', sessionRoutes);
 app.use('/api/v1/mfa', mfaRoutes);
 app.use('/api/v1/oauth', oauthRoutes);
+app.use('/api/v1/stats', statsRoutes);
 
 // Integration Routes (for service-to-service communication)
 app.use('/api/v1/integration', integrationRoutes);

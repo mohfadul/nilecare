@@ -17,6 +17,7 @@ import itemRoutes from './routes/items';
 import supplierRoutes from './routes/suppliers';
 import orderRoutes from './routes/orders';
 import locationRoutes from './routes/locations';
+import statsRoutes from './routes/stats';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
@@ -170,6 +171,7 @@ app.use('/api/v1/items', authMiddleware, itemRoutes);
 app.use('/api/v1/suppliers', authMiddleware, supplierRoutes);
 app.use('/api/v1/orders', authMiddleware, orderRoutes);
 app.use('/api/v1/locations', authMiddleware, locationRoutes);
+app.use('/api/v1/stats', authMiddleware, statsRoutes);
 
 // WebSocket connection handling
 io.on('connection', (socket) => {
