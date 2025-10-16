@@ -286,25 +286,112 @@ export class PaymentController {
   /**
    * Webhook handler for payment providers
    * POST /api/v1/payments/webhook/:provider
+   * 
+   * SECURITY: This endpoint is protected by webhook signature validation middleware
+   * 
+   * Handles webhooks from:
+   * - Stripe (payment confirmations, refunds, disputes)
+   * - PayPal (payment status updates)
+   * - Bank of Khartoum (local payments)
+   * - Zain Cash, MTN Money, Sudani Cash (mobile money)
    */
   async handleWebhook(req: Request, res: Response): Promise<void> {
+    const startTime = Date.now();
+    const { provider } = req.params;
+    const webhookId = req.headers['x-webhook-id'] || req.body.id || 'unknown';
+
     try {
-      const { provider } = req.params;
-      const webhookData = req.body;
+      console.log(`[Webhook] Processing webhook from ${provider}`, {
+        webhookId,
+        provider,
+        eventType: req.body.type || req.body.event_type,
+        timestamp: new Date().toISOString(),
+      });
 
-      await this.paymentService.handleProviderWebhook(provider, webhookData);
+      // Process the webhook
+      const result = await this.paymentService.handleProviderWebhook(provider, req.body);
 
+      const duration = Date.now() - startTime;
+
+      console.log(`[Webhook] ✅ Successfully processed webhook from ${provider}`, {
+        webhookId,
+        provider,
+        duration: `${duration}ms`,
+        result: result ? 'payment_updated' : 'no_action',
+      });
+
+      // Audit log the webhook
+      await this.logWebhookAudit(provider, webhookId, 'processed', req, result);
+
+      // Return 200 immediately (don't make provider wait)
       res.status(200).json({
         success: true,
-        message: 'Webhook processed successfully'
+        message: 'Webhook received and processed',
+        webhookId,
+        processed: true,
       });
 
     } catch (error: any) {
-      console.error('Webhook error:', error);
+      const duration = Date.now() - startTime;
+
+      console.error(`[Webhook] ❌ Error processing webhook from ${provider}`, {
+        webhookId,
+        provider,
+        duration: `${duration}ms`,
+        error: error.message,
+        stack: error.stack,
+      });
+
+      // Audit log the failure
+      await this.logWebhookAudit(provider, webhookId, 'failed', req, { error: error.message });
+
+      // Return 500 so provider knows to retry
       res.status(500).json({
         success: false,
-        error: error.message || 'Webhook processing failed'
+        error: {
+          code: 'WEBHOOK_PROCESSING_ERROR',
+          message: 'Failed to process webhook',
+          webhookId,
+        },
       });
+    }
+  }
+
+  /**
+   * Log webhook audit trail
+   */
+  private async logWebhookAudit(
+    provider: string,
+    webhookId: string,
+    status: string,
+    req: Request,
+    details: any
+  ): Promise<void> {
+    try {
+      const auditLog = {
+        action: 'webhook_received',
+        provider,
+        webhookId,
+        status,
+        ip: req.ip || req.socket.remoteAddress,
+        userAgent: req.get('user-agent'),
+        timestamp: new Date(),
+        details: JSON.stringify({
+          eventType: req.body.type || req.body.event_type,
+          hasSignature: !!req.headers['x-signature'],
+          ...details,
+        }),
+      };
+
+      // In production: Store in audit database
+      console.log('[Webhook Audit]', auditLog);
+
+      // TODO: Save to audit logs table
+      // await this.auditRepository.create(auditLog);
+
+    } catch (error: any) {
+      // Don't throw - audit logging should not break webhook processing
+      console.error('[Webhook Audit] Failed to log:', error.message);
     }
   }
 }

@@ -114,12 +114,24 @@ router.get(
 /**
  * Provider webhook handler
  * POST /api/v1/payments/webhook/:provider
- * No authentication (verified by webhook signature)
- * Rate Limit: 1000 per minute
+ * 
+ * SECURITY:
+ * ✅ Webhook signature validation (HMAC-SHA256)
+ * ✅ Timestamp validation (replay protection)
+ * ✅ Idempotency (duplicate prevention)
+ * ✅ Rate limiting (1000/min)
+ * ✅ Comprehensive audit logging
+ * 
+ * No JWT authentication (verified by webhook signature instead)
  */
 router.post(
   '/webhook/:provider',
   webhookRateLimiter,
+  // ✅ NEW: Webhook security middleware
+  async (req, res, next) => {
+    const { validateWebhookSignature } = await import('../middleware/webhook-security');
+    return validateWebhookSignature(req, res, next);
+  },
   paymentController.handleWebhook.bind(paymentController)
 );
 
