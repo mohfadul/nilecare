@@ -40,6 +40,7 @@ import mfaRoutes from './routes/mfa';
 import oauthRoutes from './routes/oauth';
 import integrationRoutes from './routes/integration';
 import statsRoutes from './routes/stats';
+import emailVerificationRoutes from './routes/email-verification';
 
 // Services
 import { AuthService } from './services/AuthService';
@@ -360,6 +361,7 @@ app.use('/api/v1/sessions', sessionRoutes);
 app.use('/api/v1/mfa', mfaRoutes);
 app.use('/api/v1/oauth', oauthRoutes);
 app.use('/api/v1/stats', statsRoutes);
+app.use('/api/v1/email-verification', emailVerificationRoutes);
 
 // Integration Routes (for service-to-service communication)
 app.use('/api/v1/integration', integrationRoutes);
