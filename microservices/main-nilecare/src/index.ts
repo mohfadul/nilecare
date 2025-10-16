@@ -41,6 +41,9 @@ import { authenticate } from './middleware/auth';
 import { SwaggerService } from './services/SwaggerService';
 import { ProxyService } from './services/ProxyService';
 
+// ✅ NEW: Dashboard routes (using service clients)
+import dashboardRoutes from './routes/dashboard';
+
 // ✅ NEW: Response transformer
 import responseTransformer from './middleware/responseTransformer';
 
@@ -907,6 +910,14 @@ app.get('/api/v1/vital-signs/device/:deviceId/latest', authenticate, async (req,
     next(error);
   }
 });
+
+// ============================================================================
+// DASHBOARD ROUTES (Using Service Clients - No DB Access)
+// ============================================================================
+
+// ✅ NEW: Dashboard endpoints that aggregate data from multiple services
+app.use('/api/v1/dashboard', authenticate, dashboardRoutes);
+logger.info('✅ Dashboard routes registered (service-client based)');
 
 // ============================================================================
 // SWAGGER / API DOCUMENTATION

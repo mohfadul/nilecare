@@ -29,6 +29,7 @@
     "@nilecare/error-handler": "file:../../packages/@nilecare/error-handler",
     "@nilecare/logger": "file:../../packages/@nilecare/logger",
     "@nilecare/response-wrapper": "file:../../packages/@nilecare/response-wrapper",
+    "@nilecare/service-clients": "file:../../packages/@nilecare/service-clients",
     "@nilecare/service-discovery": "file:../../packages/@nilecare/service-discovery",
     "@types/cookie-parser": "^1.4.9",
     "axios": "^1.6.2",
