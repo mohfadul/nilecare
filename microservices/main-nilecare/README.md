@@ -1,64 +1,84 @@
 # 🏥 NileCare Main Orchestration Service
 
-**Version:** 2.0.0  
+**Version:** 3.0.0 (Stateless Orchestrator)  
 **Port:** 7000  
-**Database:** MySQL  
-**Role:** Central Orchestrator
+**Database:** **NONE** (Pure API Gateway/Orchestrator)  
+**Role:** Central Orchestrator & Service Aggregator
 
 ---
 
 ## 📋 Overview
 
-The Main NileCare Service acts as the **central orchestrator** for the NileCare Healthcare Platform. It coordinates between various microservices, aggregates data, and provides a unified API gateway for frontend applications.
+The Main NileCare Service acts as the **stateless central orchestrator** for the NileCare Healthcare Platform. It coordinates between various microservices, aggregates data, and provides a unified API gateway for frontend applications.
+
+### 🎯 Key Architectural Principles
+
+- ✅ **Stateless**: NO database access - pure routing and aggregation layer
+- ✅ **Service-Oriented**: Delegates all data operations to domain microservices
+- ✅ **Resilient**: Circuit breakers prevent cascading failures
+- ✅ **Observable**: Request ID tracking across all service calls
+- ✅ **Type-Safe**: Strongly typed service clients with TypeScript
 
 ### Key Responsibilities
 
-- ✅ **Patient Management**: Complete patient records and demographics
-- ✅ **Clinical Data**: Encounters, diagnoses, medical history
-- ✅ **Service Orchestration**: Coordinates between microservices
-- ✅ **Data Aggregation**: Combines data from multiple services
-- ✅ **Search & Filtering**: Advanced patient and clinical data search
-- ✅ **Dashboard APIs**: Provides data for various role-based dashboards
-- ✅ **Audit Logging**: Comprehensive audit trail
-- ✅ **Real-time Updates**: Socket.IO for live data push
+- ✅ **Service Orchestration**: Routes requests to appropriate microservices
+- ✅ **Data Aggregation**: Combines data from multiple services (dashboard stats)
+- ✅ **API Gateway**: Single entry point for frontend applications
+- ✅ **Service Discovery**: Automatic service registration and health checks
+- ✅ **Circuit Breaking**: Prevents cascade failures with Opossum
+- ✅ **Request Proxying**: Transparently forwards requests to services
+- ✅ **Real-time Updates**: WebSocket proxying for live data
+- ✅ **API Documentation**: Aggregated Swagger/OpenAPI specs
 
 ---
 
-## ✨ Features
+## ✨ Architecture
 
-### Patient Management
-- Complete patient registration and profiles
-- Medical history and allergies
-- Emergency contacts
-- Insurance information
-- Document management
+### Service Communication Pattern
 
-### Clinical Operations
-- Encounter management (inpatient, outpatient, emergency)
-- Diagnosis tracking with ICD-10 codes
-- Medication management
-- Vital signs monitoring
-- Lab order integration
-- Immunization records
+```
+┌─────────────────────────────────────┐
+│   Frontend (React)                  │
+│   http://localhost:5173             │
+└──────────────┬──────────────────────┘
+               │
+               │ All API calls via port 7000
+               │
+┌──────────────▼──────────────────────┐
+│  Main NileCare Orchestrator         │
+│  Port: 7000                         │
+│  ✅ NO Database                      │
+│  ✅ Service Clients                  │
+│  ✅ Circuit Breakers                 │
+│  ✅ Request ID Tracking              │
+└──────────────┬──────────────────────┘
+               │
+       ┌───────┴───────────┬───────────────┬────────────────┐
+       │                   │               │                │
+┌──────▼──────┐    ┌──────▼──────┐  ┌────▼────┐    ┌──────▼──────┐
+│ Clinical    │    │ Auth        │  │ Lab     │    │ Appointment │
+│ Service     │    │ Service     │  │ Service │    │ Service     │
+│ (7001)      │    │ (7020)      │  │ (7080)  │    │ (7040)      │
+│             │    │             │  │         │    │             │
+│ ✅ Has DB    │    │ ✅ Has DB    │  │ ✅ Has DB│    │ ✅ Has DB    │
+└─────────────┘    └─────────────┘  └─────────┘    └─────────────┘
+```
 
-### Service Integration
-- **Auth Service Integration**: Centralized authentication
-- **Appointment Service**: Fetches patient appointments
-- **Business Service**: Billing and staff information
-- **Payment Service**: Payment status and history
-- **Device Service**: Medical device data integration
+### Service Discovery
 
-### Dashboards
-- Super Admin Dashboard
-- Medical Director Dashboard
-- Doctor Dashboard
-- Nurse Dashboard
-- Receptionist Dashboard
-- Patient Portal
-- Compliance Officer Dashboard
-- Lab Technician Dashboard
-- Pharmacist Dashboard
-- Sudan Health Inspector Dashboard
+All microservices are automatically registered with health checks:
+
+```typescript
+const serviceRegistry = {
+  'auth-service': 'http://localhost:7020',
+  'clinical-service': 'http://localhost:7001',
+  'appointment-service': 'http://localhost:7040',
+  'lab-service': 'http://localhost:7080',
+  'medication-service': 'http://localhost:7090',
+  'inventory-service': 'http://localhost:7100',
+  // ... more services
+};
+```
 
 ---
 
@@ -67,8 +87,8 @@ The Main NileCare Service acts as the **central orchestrator** for the NileCare 
 ### Prerequisites
 
 - Node.js 18+
-- MySQL 8.0+
-- Auth Service running on port 7020
+- **NO database required!** (Stateless orchestrator)
+- Microservices running (auth, clinical, etc.)
 
 ### Installation
 
@@ -77,42 +97,33 @@ cd microservices/main-nilecare
 npm install
 ```
 
-### Database Setup
-
-```bash
-# Create MySQL database
-mysql -u root -p
-CREATE DATABASE nilecare CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-exit;
-
-# Import schemas
-mysql -u root -p nilecare < ../../database/mysql/schema/clinical_data.sql
-mysql -u root -p nilecare < ../../database/SEED_DATABASE.sql
-```
-
 ### Environment Configuration
 
-Create `.env` file:
+Create `.env` file (NO database credentials needed!):
 
 ```env
 NODE_ENV=development
 PORT=7000
 
-# MySQL Database
-DB_HOST=localhost
-DB_PORT=3306
-DB_NAME=nilecare
-DB_USER=root
-DB_PASSWORD=
-
-# JWT (for backward compatibility, but delegates to Auth Service)
-JWT_SECRET=your-super-secret-jwt-key-change-in-production
-
-# Service URLs
+# Service URLs (auto-discovery)
 AUTH_SERVICE_URL=http://localhost:7020
-PAYMENT_SERVICE_URL=http://localhost:7030
-BUSINESS_SERVICE_URL=http://localhost:7010
+CLINICAL_SERVICE_URL=http://localhost:7001
 APPOINTMENT_SERVICE_URL=http://localhost:7040
+BILLING_SERVICE_URL=http://localhost:7050
+PAYMENT_SERVICE_URL=http://localhost:7030
+LAB_SERVICE_URL=http://localhost:7080
+MEDICATION_SERVICE_URL=http://localhost:7090
+INVENTORY_SERVICE_URL=http://localhost:7100
+FACILITY_SERVICE_URL=http://localhost:7060
+BUSINESS_SERVICE_URL=http://localhost:7010
+DEVICE_SERVICE_URL=http://localhost:7070
+NOTIFICATION_SERVICE_URL=http://localhost:7007
+
+# Redis Cache (optional but recommended)
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
+CACHE_TTL=300
 
 # CORS
 CORS_ORIGIN=http://localhost:5173
@@ -124,7 +135,7 @@ LOG_LEVEL=info
 ### Start Service
 
 ```bash
-# Development
+# Development (with hot reload)
 npm run dev
 
 # Production
@@ -135,202 +146,196 @@ npm start
 ### Verify Installation
 
 ```bash
-# Health check
+# Health check (no auth required)
 curl http://localhost:7000/health
 
-# Get patients (requires authentication)
-curl -H "Authorization: Bearer <token>" http://localhost:7000/api/patients
+# Service discovery status
+curl http://localhost:7000/api/v1/service-discovery/services
+
+# Dashboard stats (requires authentication)
+curl -H "Authorization: Bearer <token>" \
+  http://localhost:7000/api/v1/dashboard/stats
 ```
 
 ---
 
 ## 📡 API Endpoints
 
-### Patients
+### Dashboard Endpoints (Aggregated Data)
 
-#### GET /api/patients
-Get all patients (with pagination).
+#### GET /api/v1/dashboard/stats
+Get aggregated statistics from all services.
 
-**Query Parameters:**
-- `page`: Page number (default: 1)
-- `limit`: Items per page (default: 20)
-- `search`: Search by name, email, or national ID
+**Headers:**
+- `Authorization: Bearer <jwt-token>`
 
 **Response:**
 ```json
 {
-  "patients": [...],
-  "pagination": {
-    "total": 150,
-    "page": 1,
-    "limit": 20,
-    "pages": 8
+  "success": true,
+  "data": {
+    "clinical": {
+      "patients": { "total": 1500 },
+      "encounters": { "total": 3200, "today": 45 }
+    },
+    "auth": {
+      "users": { "total": 250, "active24h": 120 }
+    },
+    "lab": {
+      "orders": { "pending": 23 },
+      "results": { "criticalUnacknowledged": 5 }
+    },
+    "medication": {
+      "prescriptions": { "active": 456 },
+      "alerts": { "unacknowledged": 12 }
+    },
+    "inventory": {
+      "items": { "lowStock": 34, "outOfStock": 8 }
+    },
+    "appointment": {
+      "appointments": { "today": 45, "pending": 89 }
+    }
+  },
+  "servicesResponded": 6,
+  "totalServices": 6,
+  "timestamp": "2025-10-16T10:30:00.000Z"
+}
+```
+
+#### GET /api/v1/dashboard/clinical-summary
+Get clinical overview.
+
+#### GET /api/v1/dashboard/alerts
+Get critical alerts from lab, medication, and inventory services.
+
+#### GET /api/v1/dashboard/today-summary
+Get today's appointments and encounters.
+
+### Service Proxying
+
+The orchestrator transparently proxies requests to microservices:
+
+```
+# Clinical Service
+GET  /api/v1/patients/*              → Clinical Service (7001)
+GET  /api/v1/encounters/*            → Clinical Service (7001)
+GET  /api/v1/stats                   → Clinical Service (7001)
+
+# Appointment Service  
+GET  /api/v1/appointments/*          → Appointment Service (7040)
+POST /api/v1/appointments            → Appointment Service (7040)
+
+# Lab Service
+GET  /api/v1/lab-orders/*            → Lab Service (7080)
+GET  /api/v1/results/*               → Lab Service (7080)
+
+# Auth Service (authentication)
+POST /api/v1/auth/login              → Auth Service (7020)
+POST /api/v1/auth/refresh            → Auth Service (7020)
+GET  /api/v1/auth/validate           → Auth Service (7020)
+
+# And more...
+```
+
+### Service Discovery
+
+#### GET /api/v1/service-discovery/services
+Get all registered services and their health status.
+
+**Response:**
+```json
+{
+  "services": {
+    "auth-service": {
+      "url": "http://localhost:7020",
+      "healthy": true,
+      "lastCheck": "2025-10-16T10:30:00.000Z"
+    },
+    "clinical-service": {
+      "url": "http://localhost:7001",
+      "healthy": true,
+      "lastCheck": "2025-10-16T10:30:00.000Z"
+    }
+    // ... more services
   }
 }
 ```
 
-#### GET /api/patients/:id
-Get patient by ID.
+### Health & Monitoring
 
-#### POST /api/patients
-Create new patient.
+#### GET /health
+Service health check (no auth required).
 
-**Request:**
-```json
-{
-  "firstName": "Ahmed",
-  "lastName": "Mohamed",
-  "email": "ahmed@example.com",
-  "phone": "+249123456789",
-  "nationalId": "12345678901234",
-  "dateOfBirth": "1990-01-15",
-  "gender": "male",
-  "address": "Khartoum, Sudan"
-}
-```
+#### GET /ready
+Readiness probe for Kubernetes.
 
-#### PUT /api/patients/:id
-Update patient information.
-
-#### DELETE /api/patients/:id
-Soft delete patient.
-
-### Encounters
-
-#### GET /api/encounters
-Get all encounters.
-
-#### POST /api/encounters
-Create new encounter.
-
-**Request:**
-```json
-{
-  "patientId": 1,
-  "providerId": 2,
-  "encounterType": "outpatient",
-  "chiefComplaint": "Fever and cough",
-  "facilityId": 1
-}
-```
-
-### Clinical Data
-
-#### GET /api/patients/:id/medical-history
-Get patient's complete medical history.
-
-#### POST /api/patients/:id/allergies
-Add patient allergy.
-
-#### GET /api/patients/:id/medications
-Get patient's current medications.
-
-#### POST /api/vitals
-Record vital signs.
-
-### Search
-
-#### GET /api/search/patients
-Advanced patient search.
-
-**Query Parameters:**
-- `q`: Search query
-- `ageMin`: Minimum age
-- `ageMax`: Maximum age
-- `gender`: Gender filter
-- `facilityId`: Facility filter
-
-### Dashboards
-
-#### GET /api/dashboard/stats
-Get dashboard statistics.
-
-**Response:**
-```json
-{
-  "totalPatients": 1500,
-  "todayAppointments": 45,
-  "activeEncounters": 12,
-  "pendingPayments": 23,
-  "criticalAlerts": 3
-}
-```
-
-#### GET /api/dashboard/recent-activities
-Get recent system activities.
-
-### Service Proxying
-
-The orchestrator also proxies requests to other services:
-
-```
-GET  /api/appointment/*       → Appointment Service (7040)
-GET  /api/business/*          → Business Service (7010)
-GET  /api/payment/*           → Payment Service (7030)
-```
+#### GET /metrics
+Prometheus metrics endpoint.
 
 ---
 
-## 🗄️ Database Schema
+## 🔌 Service Clients
 
-### Main Tables
+Main-nilecare uses type-safe service clients from `@nilecare/service-clients`:
 
-- **patients**: Patient demographics and profiles
-- **encounters**: Patient visits and encounters
-- **diagnoses**: Diagnosis records
-- **medications**: Medication prescriptions
-- **allergies**: Patient allergies
-- **vital_signs**: Vital signs measurements
-- **immunizations**: Immunization records
-- **lab_orders**: Laboratory test orders
-- **clinical_notes**: SOAP notes and clinical documentation
-- **audit_logs**: System audit trail
+```typescript
+import { serviceClients } from './clients/ServiceClients';
 
-### Key Relationships
+// Set auth token
+serviceClients.setAuthToken(jwtToken);
 
+// Fetch data from services
+const patientsCount = await serviceClients.clinical.getPatientsCount();
+const activeUsers = await serviceClients.auth.getActiveUsersCount();
+const pendingOrders = await serviceClients.lab.getPendingOrdersCount();
 ```
-patients (1) → (N) encounters
-patients (1) → (N) allergies
-patients (1) → (N) medications
-encounters (1) → (N) diagnoses
-encounters (1) → (N) vital_signs
-```
+
+### Circuit Breakers
+
+All service calls are protected by circuit breakers:
+
+- **Timeout**: 10 seconds
+- **Error Threshold**: 50%
+- **Reset Timeout**: 30 seconds
+- **Volume Threshold**: 3 requests
+
+When a circuit opens, requests fail immediately without waiting for timeout.
 
 ---
 
-## 🔌 Service Integration
+## 🗄️ Data Flow
 
-### Auth Service Integration
-
-All routes are protected by authentication middleware:
+### How Dashboard Stats Work
 
 ```typescript
-import { authenticateToken } from './middleware/auth';
+// 1. Frontend requests dashboard stats
+GET /api/v1/dashboard/stats
 
-router.get('/api/patients', authenticateToken, getPatients);
+// 2. Main-nilecare orchestrates parallel calls to services
+const [clinical, auth, lab, med, inv, appt] = await Promise.allSettled([
+  serviceClients.clinical.getAllStats(),
+  serviceClients.auth.getAllStats(),
+  serviceClients.lab.getAllStats(),
+  serviceClients.medication.getAllStats(),
+  serviceClients.inventory.getAllStats(),
+  serviceClients.appointment.getAllStats(),
+]);
+
+// 3. Aggregates results (graceful degradation if services fail)
+return {
+  clinical: clinical.status === 'fulfilled' ? clinical.value : null,
+  auth: auth.status === 'fulfilled' ? auth.value : null,
+  // ... more services
+};
+
+// 4. Returns combined response to frontend
 ```
 
-The middleware delegates to Auth Service for token validation.
-
-### Appointment Service Integration
-
-```typescript
-// Fetch patient appointments
-const appointments = await axios.get(
-  `${APPOINTMENT_SERVICE_URL}/api/appointments?patientId=${patientId}`,
-  { headers: { Authorization: req.headers.authorization } }
-);
-```
-
-### Business Service Integration
-
-```typescript
-// Fetch billing information
-const billing = await axios.get(
-  `${BUSINESS_SERVICE_URL}/api/billing/patient/${patientId}`,
-  { headers: { Authorization: req.headers.authorization } }
-);
-```
+**Benefits:**
+- ✅ **Parallel fetching**: All services called simultaneously
+- ✅ **Graceful degradation**: Partial failures don't break entire response
+- ✅ **Type safety**: Strongly typed responses
+- ✅ **Resilience**: Circuit breakers prevent cascading failures
 
 ---
 
@@ -342,21 +347,28 @@ const billing = await axios.get(
 # All tests
 npm test
 
-# Specific test file
-npm test -- patients.test.ts
+# Watch mode
+npm run test:watch
 
-# With coverage
+# Coverage
 npm run test:coverage
 ```
 
-### Test Data
+### Manual Testing
 
 ```bash
-# Seed test data
-npm run seed
+# 1. Get auth token
+TOKEN=$(curl -X POST http://localhost:7020/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@nilecare.sd","password":"password"}' \
+  | jq -r '.token')
 
-# Clear test data
-npm run seed:clear
+# 2. Test dashboard stats
+curl -H "Authorization: Bearer $TOKEN" \
+  http://localhost:7000/api/v1/dashboard/stats | jq
+
+# 3. Test service discovery
+curl http://localhost:7000/api/v1/service-discovery/services | jq
 ```
 
 ---
@@ -367,113 +379,164 @@ npm run seed:clear
 
 ```bash
 # Build image
-docker build -t nilecare/main-service:2.0.0 .
+docker build -t nilecare/main-orchestrator:3.0.0 .
 
 # Run container
 docker run -d \
   -p 7000:7000 \
   --env-file .env.production \
-  nilecare/main-service:2.0.0
+  nilecare/main-orchestrator:3.0.0
 ```
 
-### Environment Variables (Production)
+### Kubernetes Deployment
 
-```env
-NODE_ENV=production
-PORT=7000
-
-DB_HOST=mysql-production.example.com
-DB_PORT=3306
-DB_NAME=nilecare
-DB_USER=nilecare_app
-DB_PASSWORD=<strong-password>
-
-AUTH_SERVICE_URL=http://auth-service:7020
-PAYMENT_SERVICE_URL=http://payment-service:7030
-BUSINESS_SERVICE_URL=http://business-service:7010
-APPOINTMENT_SERVICE_URL=http://appointment-service:7040
-
-CORS_ORIGIN=https://nilecare.sd
-
-LOG_LEVEL=warn
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: main-orchestrator
+spec:
+  replicas: 3  # Stateless - scale horizontally!
+  selector:
+    matchLabels:
+      app: main-orchestrator
+  template:
+    metadata:
+      labels:
+        app: main-orchestrator
+    spec:
+      containers:
+      - name: main-orchestrator
+        image: nilecare/main-orchestrator:3.0.0
+        ports:
+        - containerPort: 7000
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: AUTH_SERVICE_URL
+          value: "http://auth-service:7020"
+        # ... more service URLs
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 7000
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 7000
 ```
 
 ---
 
 ## 📊 Monitoring
 
-### Health Check
-
-```bash
-GET /health
-Response: {"status":"healthy","service":"main-nilecare","timestamp":"..."}
-```
-
 ### Metrics
 
 ```bash
 GET /metrics
-# Prometheus metrics
-http_requests_total
-http_request_duration_seconds
-patients_total
-encounters_total
+
+# Key metrics:
+http_requests_total{service="main-nilecare"}
+http_request_duration_seconds{service="main-nilecare"}
+circuit_breaker_state{service="clinical-service"}
+service_health{service="auth-service"}
+```
+
+### Logging
+
+Structured logging with request ID tracking:
+
+```json
+{
+  "level": "info",
+  "message": "Dashboard stats retrieved",
+  "requestId": "f773b07b-578f-4ac3-9c15-56a21b1b32b8",
+  "servicesResponded": 6,
+  "totalServices": 6,
+  "timestamp": "2025-10-16T10:30:00.000Z"
+}
 ```
 
 ---
 
 ## 🐛 Troubleshooting
 
-### "Cannot connect to Auth Service"
+### "Service is unavailable"
 
-**Symptoms:** All requests fail with 401 errors
+**Symptoms:** Requests fail with 503 errors
 
 **Solution:**
 ```bash
-# Verify Auth Service is running
-curl http://localhost:7020/health
+# 1. Check service health
+curl http://localhost:7000/api/v1/service-discovery/services
 
-# Check environment variable
+# 2. Verify service is running
+curl http://localhost:7020/health  # Auth Service
+curl http://localhost:7001/health  # Clinical Service
+
+# 3. Check service URL in .env
 echo $AUTH_SERVICE_URL
-# Should be: http://localhost:7020
 ```
 
-### "Database connection error"
+### "Circuit breaker is open"
+
+**Symptoms:** Errors mentioning circuit breaker
+
+**Solution:**
+- Circuit breaker opens after 50% error rate
+- Wait 30 seconds for automatic reset
+- Check target service health
+- Review service logs for errors
+
+### "All services returning null data"
+
+**Symptoms:** Dashboard shows empty data
 
 **Solution:**
 ```bash
-# Test database connection
-mysql -h localhost -u root -p nilecare
+# Check authentication token
+curl -H "Authorization: Bearer $TOKEN" \
+  http://localhost:7001/api/v1/stats  # Direct service call
 
-# Verify credentials in .env match MySQL
-```
-
-### "Service timeout errors"
-
-**Solution:**
-```typescript
-// Increase timeout in axios calls
-const response = await axios.get(url, {
-  timeout: 10000  // 10 seconds
-});
+# Verify services are authenticated properly
+# Each service needs valid JWT token
 ```
 
 ---
 
 ## 📚 Related Documentation
 
+- [Service Clients Package](../../packages/@nilecare/service-clients/README.md)
+- [Response Wrapper Package](../../packages/@nilecare/response-wrapper/README.md)
 - [Authentication Guide](../../AUTHENTICATION.md)
-- [Quick Start](../../QUICKSTART.md)
-- [Deployment Guide](../../DEPLOYMENT.md)
-- [Troubleshooting](../../TROUBLESHOOTING.md)
-- [Main README](../../README.md)
+- [Architecture Overview](../../ARCHITECTURE_OVERVIEW.md)
+- [Phase 1 & 2 Summary](../../🎉_PHASE1_AND_PHASE2_COMPLETE_SUMMARY.md)
+
+---
+
+## 🎯 Benefits of Stateless Architecture
+
+### For Development
+- ✅ **Easier Testing**: No database setup required
+- ✅ **Faster Development**: No schema migrations
+- ✅ **Clear Boundaries**: Services own their data
+
+### For Operations
+- ✅ **Horizontal Scaling**: Add more instances without database concerns
+- ✅ **No Database Bottleneck**: Each service has independent database
+- ✅ **Resilient**: Service failures are isolated
+
+### For Business
+- ✅ **Faster Deployments**: No database migration coordination
+- ✅ **Independent Service Updates**: Deploy services independently
+- ✅ **Better Performance**: Parallel data fetching
 
 ---
 
 ## 🤝 Contributing
 
 1. Create feature branch
-2. Make changes
+2. Make changes (no database migrations!)
 3. Add tests
 4. Run `npm test` and `npm run lint`
 5. Submit pull request
@@ -484,13 +547,12 @@ const response = await axios.get(url, {
 
 - 📧 Email: support@nilecare.sd
 - 📖 Documentation: https://docs.nilecare.sd
-- 🐛 Issues: https://github.com/your-org/nilecare/issues
+- 🐛 Issues: https://github.com/mohfadul/nilecare/issues
 
 ---
 
-**Last Updated:** October 15, 2025  
-**Version:** 2.0.0  
+**Last Updated:** October 16, 2025  
+**Version:** 3.0.0 (Stateless Orchestrator)  
 **Port:** 7000  
+**Database:** NONE (Pure orchestrator)  
 **Maintained by:** NileCare Development Team
-
-
