@@ -5,7 +5,8 @@
 
 import { Router } from 'express';
 import InvoiceController from '../controllers/invoice.controller';
-import { authenticate, requirePermission, requireRole } from '../middleware/auth.middleware';
+// ✅ FIX #3: Using shared auth middleware (centralized auth delegation)
+import { authenticate, requirePermission, requireRole } from '../../../../shared/middleware/auth';
 import { billingRateLimiter } from '../middleware/rate-limiter.middleware';
 import { asyncHandler } from '../middleware/error-handler.middleware';
 
