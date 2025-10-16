@@ -42,7 +42,7 @@ import { SwaggerService } from './services/SwaggerService';
 import { ProxyService } from './services/ProxyService';
 
 // ✅ NEW: Dashboard routes (using service clients)
-import dashboardRoutes from './routes/dashboard';
+import dashboardRoutes from './routes/dashboard.routes';
 
 // ✅ NEW: Response transformer
 import responseTransformer from './middleware/responseTransformer';

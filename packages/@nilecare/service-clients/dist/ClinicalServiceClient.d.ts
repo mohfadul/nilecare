@@ -13,6 +13,11 @@ export declare class ClinicalServiceClient {
      */
     setAuthToken(token: string): void;
     /**
+     * Set request ID for correlation tracking
+     * Propagates request ID across service calls for end-to-end tracing
+     */
+    setRequestId(requestId: string): void;
+    /**
      * Get patient count statistics
      */
     getPatientsCount(): Promise<number>;

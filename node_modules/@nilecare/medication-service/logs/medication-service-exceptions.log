@@ -1,0 +1,29 @@
+2025-10-16 11:33:54 [error]: uncaughtException: Cannot find module '../../shared/middleware/auth'
+Require stack:
+- C:\Users\pc\OneDrive\Desktop\NileCare\microservices\medication-service\src\index.ts
+Error: Cannot find module '../../shared/middleware/auth'
+Require stack:
+- C:\Users\pc\OneDrive\Desktop\NileCare\microservices\medication-service\src\index.ts
+    at node:internal/modules/cjs/loader:1383:15
+    at nextResolveSimple (C:\Users\pc\OneDrive\Desktop\NileCare\node_modules\tsx\dist\register-D46fvsV_.cjs:4:1004)
+    at C:\Users\pc\OneDrive\Desktop\NileCare\node_modules\tsx\dist\register-D46fvsV_.cjs:3:2630
+    at C:\Users\pc\OneDrive\Desktop\NileCare\node_modules\tsx\dist\register-D46fvsV_.cjs:3:1542
+    at resolveTsPaths (C:\Users\pc\OneDrive\Desktop\NileCare\node_modules\tsx\dist\register-D46fvsV_.cjs:4:760)
+    at C:\Users\pc\OneDrive\Desktop\NileCare\node_modules\tsx\dist\register-D46fvsV_.cjs:4:1102
+    at m._resolveFilename (file:///C:/Users/pc/OneDrive/Desktop/NileCare/node_modules/tsx/dist/register-B7jrtLTO.mjs:1:789)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+    at Function._load (node:internal/modules/cjs/loader:1192:37) {"error":{"code":"MODULE_NOT_FOUND","requireStack":["C:\\Users\\pc\\OneDrive\\Desktop\\NileCare\\microservices\\medication-service\\src\\index.ts"]},"exception":true,"date":"Thu Oct 16 2025 11:33:54 GMT+0300 (East Africa Time)","process":{"pid":2612,"uid":null,"gid":null,"cwd":"C:\\Users\\pc\\OneDrive\\Desktop\\NileCare\\microservices\\medication-service","execPath":"C:\\Program Files\\nodejs\\node.exe","version":"v22.20.0","argv":["C:\\Program Files\\nodejs\\node.exe","C:\\Users\\pc\\OneDrive\\Desktop\\NileCare\\microservices\\medication-service\\src\\index.ts"],"memoryUsage":{"rss":108453888,"heapTotal":34447360,"heapUsed":22862560,"external":3263454,"arrayBuffers":245190}},"os":{"loadavg":[0,0,0],"uptime":13587.937},"trace":[{"column":15,"file":"node:internal/modules/cjs/loader","function":null,"line":1383,"method":null,"native":false},{"column":1004,"file":"C:\\Users\\pc\\OneDrive\\Desktop\\NileCare\\node_modules\\tsx\\dist\\register-D46fvsV_.cjs","function":"nextResolveSimple","line":4,"method":null,"native":false},{"column":2630,"file":"C:\\Users\\pc\\OneDrive\\Desktop\\NileCare\\node_modules\\tsx\\dist\\register-D46fvsV_.cjs","function":null,"line":3,"method":null,"native":false},{"column":1542,"file":"C:\\Users\\pc\\OneDrive\\Desktop\\NileCare\\node_modules\\tsx\\dist\\register-D46fvsV_.cjs","function":null,"line":3,"method":null,"native":false},{"column":760,"file":"C:\\Users\\pc\\OneDrive\\Desktop\\NileCare\\node_modules\\tsx\\dist\\register-D46fvsV_.cjs","function":"resolveTsPaths","line":4,"method":null,"native":false},{"column":1102,"file":"C:\\Users\\pc\\OneDrive\\Desktop\\NileCare\\node_modules\\tsx\\dist\\register-D46fvsV_.cjs","function":null,"line":4,"method":null,"native":false},{"column":789,"file":"file:///C:/Users/pc/OneDrive/Desktop/NileCare/node_modules/tsx/dist/register-B7jrtLTO.mjs","function":"m._resolveFilename","line":1,"method":"_resolveFilename","native":false},{"column":19,"file":"node:internal/modules/cjs/loader","function":"defaultResolveImpl","line":1025,"method":null,"native":false},{"column":22,"file":"node:internal/modules/cjs/loader","function":"resolveForCJSWithHooks","line":1030,"method":null,"native":false},{"column":37,"file":"node:internal/modules/cjs/loader","function":"Function._load","line":1192,"method":"_load","native":false}]}
+Error: Cannot find module '../../shared/middleware/auth'
+Require stack:
+- C:\Users\pc\OneDrive\Desktop\NileCare\microservices\medication-service\src\index.ts
+    at node:internal/modules/cjs/loader:1383:15
+    at nextResolveSimple (C:\Users\pc\OneDrive\Desktop\NileCare\node_modules\tsx\dist\register-D46fvsV_.cjs:4:1004)
+    at C:\Users\pc\OneDrive\Desktop\NileCare\node_modules\tsx\dist\register-D46fvsV_.cjs:3:2630
+    at C:\Users\pc\OneDrive\Desktop\NileCare\node_modules\tsx\dist\register-D46fvsV_.cjs:3:1542
+    at resolveTsPaths (C:\Users\pc\OneDrive\Desktop\NileCare\node_modules\tsx\dist\register-D46fvsV_.cjs:4:760)
+    at C:\Users\pc\OneDrive\Desktop\NileCare\node_modules\tsx\dist\register-D46fvsV_.cjs:4:1102
+    at m._resolveFilename (file:///C:/Users/pc/OneDrive/Desktop/NileCare/node_modules/tsx/dist/register-B7jrtLTO.mjs:1:789)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+    at Function._load (node:internal/modules/cjs/loader:1192:37)

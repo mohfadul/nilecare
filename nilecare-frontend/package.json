@@ -19,7 +19,7 @@
     "@mui/material": "^5.14.16",
     "@mui/x-data-grid": "^6.18.1",
     "@mui/x-date-pickers": "^6.18.1",
-    "@tanstack/react-query": "^5.8.4",
+    "@tanstack/react-query": "^5.90.3",
     "axios": "^1.6.2",
     "date-fns": "^2.30.0",
     "i18next": "^23.6.0",
@@ -29,6 +29,7 @@
     "react-i18next": "^13.4.0",
     "react-router-dom": "^6.19.0",
     "recharts": "^2.10.3",
+    "socket.io-client": "^4.8.1",
     "zod": "^3.22.4",
     "zustand": "^4.4.6"
   },
@@ -51,4 +52,3 @@
     "vitest": "^0.34.6"
   }
 }
-

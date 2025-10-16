@@ -203,3 +203,26 @@ export const wsService = new WebSocketService();
 // Export class for testing
 export default WebSocketService;
 
+/**
+ * React Hook for using WebSocket
+ * Provides subscribe/unsubscribe functionality for components
+ */
+export function useWebSocket() {
+  return {
+    subscribe: (channel: string, handler: EventCallback) => {
+      return wsService.on(channel, handler);
+    },
+    unsubscribe: (channel: string, handler?: EventCallback) => {
+      if (handler) {
+        wsService.socket?.off(channel, handler);
+      }
+    },
+    emit: (event: string, data?: any) => {
+      wsService.emit(event, data);
+    },
+    isConnected: () => wsService.isConnected(),
+    connect: (token: string) => wsService.connect(token),
+    disconnect: () => wsService.disconnect()
+  };
+}
+

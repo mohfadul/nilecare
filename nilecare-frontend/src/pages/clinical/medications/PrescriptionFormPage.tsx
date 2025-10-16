@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Container,
@@ -9,14 +10,22 @@ import {
   TextField,
   MenuItem,
   Alert,
+  CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
-import { ArrowBack, Save } from '@mui/icons-material';
+import { ArrowBack, Save, Warning } from '@mui/icons-material';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useQuery } from '@tanstack/react-query';
 import { useCreateMedication } from '../../../hooks/useMedications';
 import { CreateMedicationRequest } from '../../../api/medications.api';
 import { authStore } from '../../../store/authStore';
+import { cdsService } from '../../../services/cds.service';
+import { DrugInteractionAlert } from '../../../components/clinical/DrugInteractionAlert';
 
 const medicationSchema = z.object({
   patientId: z.number().min(1, 'Patient is required'),
@@ -37,10 +46,18 @@ export function PrescriptionFormPage() {
   const navigate = useNavigate();
   const user = authStore((state) => state.user);
   const createMedication = useCreateMedication();
+  
+  // ✅ PHASE 7: CDS Integration State
+  const [selectedPatientId, setSelectedPatientId] = useState<number>(1);
+  const [selectedMedication, setSelectedMedication] = useState<string>('');
+  const [selectedDosage, setSelectedDosage] = useState<string>('');
+  const [showOverrideDialog, setShowOverrideDialog] = useState(false);
+  const [overrideReason, setOverrideReason] = useState('');
 
   const {
     control,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<MedicationFormData>({
     resolver: zodResolver(medicationSchema),
@@ -57,8 +74,38 @@ export function PrescriptionFormPage() {
       reason: '',
     },
   });
+  
+  // Watch form fields for CDS check
+  const watchedPatientId = watch('patientId');
+  const watchedMedication = watch('medicationName');
+  const watchedDosage = watch('dosage');
+  const watchedFrequency = watch('frequency');
+  
+  // ✅ PHASE 7: CDS Check Query
+  const { data: cdsCheck, isLoading: checkingCDS } = useQuery({
+    queryKey: ['cds-check', watchedPatientId, watchedMedication, watchedDosage],
+    queryFn: () => cdsService.checkPrescription({
+      patientId: watchedPatientId?.toString() || '',
+      drugName: watchedMedication,
+      dose: watchedDosage,
+      frequency: watchedFrequency
+    }),
+    enabled: !!watchedMedication && !!watchedDosage && watchedMedication.length > 2,
+    retry: 1
+  });
+  
+  // Check if there are critical interactions
+  const hasCriticalInteraction = cdsCheck?.data?.interactions?.some(
+    (i) => i.severity === 'critical'
+  ) || false;
 
   const onSubmit = async (data: MedicationFormData) => {
+    // ✅ PHASE 7: Check for critical interactions before submitting
+    if (hasCriticalInteraction && !overrideReason) {
+      setShowOverrideDialog(true);
+      return;
+    }
+    
     try {
       const requestData: CreateMedicationRequest = {
         patientId: data.patientId,
@@ -75,9 +122,23 @@ export function PrescriptionFormPage() {
       };
 
       await createMedication.mutateAsync(requestData);
+      
+      // Log override if critical interaction was bypassed
+      if (hasCriticalInteraction && overrideReason) {
+        console.log('Critical interaction overridden:', { overrideReason, interactions: cdsCheck?.data?.interactions });
+      }
+      
       navigate('/clinical/medications');
     } catch (error) {
       console.error('Failed to prescribe medication:', error);
+    }
+  };
+  
+  const handleOverrideConfirm = () => {
+    if (overrideReason.trim()) {
+      setShowOverrideDialog(false);
+      // Re-submit the form with override
+      handleSubmit(onSubmit)();
     }
   };
 
@@ -151,10 +212,32 @@ export function PrescriptionFormPage() {
                     error={!!errors.medicationName}
                     helperText={errors.medicationName?.message}
                     placeholder="e.g., Metformin, Lisinopril, Amoxicillin"
+                    InputProps={{
+                      endAdornment: checkingCDS && <CircularProgress size={20} />
+                    }}
                   />
                 )}
               />
+              {checkingCDS && (
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                  Checking for drug interactions...
+                </Typography>
+              )}
             </Grid>
+            
+            {/* ✅ PHASE 7: CDS Drug Interaction Warnings */}
+            {cdsCheck?.data?.interactions && cdsCheck.data.interactions.length > 0 && (
+              <Grid item xs={12}>
+                <Box sx={{ mt: 1 }}>
+                  <Typography variant="h6" color="error" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Warning /> Drug Interaction Warnings ({cdsCheck.data.interactions.length})
+                  </Typography>
+                  {cdsCheck.data.interactions.map((interaction, index) => (
+                    <DrugInteractionAlert key={index} interaction={interaction} />
+                  ))}
+                </Box>
+              </Grid>
+            )}
 
             <Grid item xs={12} sm={6}>
               <Controller
@@ -318,14 +401,55 @@ export function PrescriptionFormPage() {
                   variant="contained"
                   startIcon={<Save />}
                   disabled={isSubmitting}
+                  color={hasCriticalInteraction ? 'error' : 'primary'}
                 >
-                  {isSubmitting ? 'Prescribing...' : 'Prescribe Medication'}
+                  {isSubmitting ? 'Prescribing...' : hasCriticalInteraction ? 'Prescribe (Override Required)' : 'Prescribe Medication'}
                 </Button>
               </Box>
             </Grid>
           </Grid>
         </Box>
       </Paper>
+      
+      {/* ✅ PHASE 7: Override Dialog for Critical Interactions */}
+      <Dialog open={showOverrideDialog} onClose={() => setShowOverrideDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ color: 'error.main', display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Warning /> Critical Drug Interaction Override Required
+        </DialogTitle>
+        <DialogContent>
+          <Alert severity="error" sx={{ mb: 3 }}>
+            This prescription has CRITICAL drug interactions. Override should only be done with careful consideration and clinical justification.
+          </Alert>
+          
+          <TextField
+            label="Clinical Justification for Override (Required)"
+            multiline
+            rows={4}
+            fullWidth
+            required
+            value={overrideReason}
+            onChange={(e) => setOverrideReason(e.target.value)}
+            placeholder="Explain why the benefits outweigh the risks..."
+            helperText="This justification will be logged in the patient's medical record"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => {
+            setShowOverrideDialog(false);
+            setOverrideReason('');
+          }}>
+            Cancel Prescription
+          </Button>
+          <Button 
+            onClick={handleOverrideConfirm} 
+            variant="contained" 
+            color="error"
+            disabled={!overrideReason.trim()}
+          >
+            Confirm Override & Prescribe
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 }

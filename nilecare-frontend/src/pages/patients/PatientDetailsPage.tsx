@@ -17,6 +17,7 @@ import {
 import { Edit, ArrowBack, Person, Phone, Email, CalendarToday, LocationOn, Bloodtype } from '@mui/icons-material';
 import { usePatient } from '../../hooks/usePatients';
 import { format } from 'date-fns';
+import { VitalSignsMonitor } from '../../components/clinical/VitalSignsMonitor';
 
 export function PatientDetailsPage() {
   const { id } = useParams<{ id: string }>();
@@ -140,6 +141,13 @@ export function PatientDetailsPage() {
           </Grid>
         </Grid>
       </Paper>
+
+      {/* ✅ PHASE 7: Real-Time Vital Signs Monitor */}
+      <Grid container spacing={3} sx={{ mb: 3 }}>
+        <Grid item xs={12}>
+          <VitalSignsMonitor patientId={id || ''} />
+        </Grid>
+      </Grid>
 
       {/* Demographic Information */}
       <Grid container spacing={3}>
