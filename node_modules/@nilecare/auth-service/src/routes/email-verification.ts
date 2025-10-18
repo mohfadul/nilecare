@@ -9,7 +9,7 @@ import { EmailVerificationService } from '../services/EmailVerificationService';
 import { EmailService } from '../services/EmailService';
 import { UserService } from '../services/UserService';
 import { logger } from '../utils/logger';
-import { authenticate } from '../middleware/auth';
+import { authenticate } from '../middleware/authentication';
 import { rateLimiter } from '../middleware/rateLimiter';
 
 const router = Router();

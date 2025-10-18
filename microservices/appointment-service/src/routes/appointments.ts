@@ -8,7 +8,7 @@ import NotificationService from '../services/NotificationService';
 import EventService from '../services/EventService';
 import ReminderService from '../services/ReminderService';
 // ✅ Using local authentication middleware
-import { authenticate } from '../middleware/auth';
+import { authenticate } from '../../shared/middleware/auth';
 import { validateRequired } from '../middleware/validation';
 
 const router = Router();

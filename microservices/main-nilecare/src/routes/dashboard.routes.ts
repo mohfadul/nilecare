@@ -19,7 +19,7 @@ import {
   facilityServiceClient,
   authServiceClient
 } from '@nilecare/service-clients';
-import { logger } from '../utils/logger';
+import { logger } from '@nilecare/logger';
 
 const router = Router();
 

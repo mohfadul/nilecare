@@ -5,7 +5,7 @@
 
 import { Router, Request, Response, NextFunction } from 'express';
 // ✅ Using local authentication middleware
-import { authenticate } from '../middleware/auth';
+import { authenticate } from '../../shared/middleware/auth';
 import { pool } from '../config/database';
 
 const router = Router();

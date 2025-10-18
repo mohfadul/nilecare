@@ -1,0 +1,109 @@
+{"environment":"development","level":"info","message":"✅ Dashboard routes registered (service-client based)","service":"main-nilecare","timestamp":"2025-10-18T15:21:31.543Z"}
+{"environment":"development","level":"info","message":"═══════════════════════════════════════════════════════","service":"main-nilecare","timestamp":"2025-10-18T15:21:31.557Z"}
+{"environment":"development","level":"info","message":"🚀  MAIN NILECARE ORCHESTRATOR - UNIFIED GATEWAY","service":"main-nilecare","timestamp":"2025-10-18T15:21:31.559Z"}
+{"environment":"development","level":"info","message":"═══════════════════════════════════════════════════════","service":"main-nilecare","timestamp":"2025-10-18T15:21:31.560Z"}
+{"environment":"development","level":"info","message":"📡  Service URL:          http://localhost:7000","service":"main-nilecare","timestamp":"2025-10-18T15:21:31.561Z"}
+{"environment":"development","level":"info","message":"🏥  Health Check:         http://localhost:7000/health","service":"main-nilecare","timestamp":"2025-10-18T15:21:31.562Z"}
+{"environment":"development","level":"info","message":"📚  API Documentation:    http://localhost:7000/api-docs","service":"main-nilecare","timestamp":"2025-10-18T15:21:31.562Z"}
+{"environment":"development","level":"info","message":"📊  Services Status:      http://localhost:7000/api/v1/services/status","service":"main-nilecare","timestamp":"2025-10-18T15:21:31.563Z"}
+{"environment":"development","level":"info","message":"","service":"main-nilecare","timestamp":"2025-10-18T15:21:31.563Z"}
+{"environment":"development","level":"info","message":"✅  Architecture: UNIFIED ORCHESTRATOR (gateway-service integrated)","service":"main-nilecare","timestamp":"2025-10-18T15:21:31.564Z"}
+{"environment":"development","level":"info","message":"✅  Database: NONE (pure routing layer)","service":"main-nilecare","timestamp":"2025-10-18T15:21:31.565Z"}
+{"environment":"development","level":"info","message":"✅  Circuit Breakers: ENABLED","service":"main-nilecare","timestamp":"2025-10-18T15:21:31.565Z"}
+{"environment":"development","level":"info","message":"✅  Service Discovery: ENABLED","service":"main-nilecare","timestamp":"2025-10-18T15:21:31.566Z"}
+{"environment":"development","level":"info","message":"✅  Health-Based Routing: ENABLED","service":"main-nilecare","timestamp":"2025-10-18T15:21:31.576Z"}
+{"environment":"development","level":"info","message":"✅  Redis Caching: ENABLED","service":"main-nilecare","timestamp":"2025-10-18T15:21:31.577Z"}
+{"environment":"development","level":"info","message":"✅  Swagger Docs: ENABLED","service":"main-nilecare","timestamp":"2025-10-18T15:21:31.578Z"}
+{"environment":"development","level":"info","message":"✅  WebSocket Support: ENABLED","service":"main-nilecare","timestamp":"2025-10-18T15:21:31.579Z"}
+{"environment":"development","level":"info","message":"✨  Response Wrapper: ENABLED (Request ID propagation)","service":"main-nilecare","timestamp":"2025-10-18T15:21:31.580Z"}
+{"environment":"development","level":"info","message":"","service":"main-nilecare","timestamp":"2025-10-18T15:21:31.581Z"}
+{"environment":"development","level":"info","message":"🔗  Downstream Services:","service":"main-nilecare","timestamp":"2025-10-18T15:21:31.582Z"}
+{"environment":"development","level":"info","message":"   ✅ auth-service","service":"main-nilecare","timestamp":"2025-10-18T15:21:31.582Z"}
+{"environment":"development","level":"info","message":"   ✅ business-service","service":"main-nilecare","timestamp":"2025-10-18T15:21:31.583Z"}
+{"environment":"development","level":"info","message":"   ✅ clinical-service","service":"main-nilecare","timestamp":"2025-10-18T15:21:31.584Z"}
+{"environment":"development","level":"info","message":"   ✅ appointment-service","service":"main-nilecare","timestamp":"2025-10-18T15:21:31.584Z"}
+{"environment":"development","level":"info","message":"   ✅ payment-service","service":"main-nilecare","timestamp":"2025-10-18T15:21:31.584Z"}
+{"environment":"development","level":"info","message":"   ✅ billing-service","service":"main-nilecare","timestamp":"2025-10-18T15:21:31.585Z"}
+{"environment":"development","level":"info","message":"   ✅ medication-service","service":"main-nilecare","timestamp":"2025-10-18T15:21:31.586Z"}
+{"environment":"development","level":"info","message":"   ✅ lab-service","service":"main-nilecare","timestamp":"2025-10-18T15:21:31.587Z"}
+{"environment":"development","level":"info","message":"   ✅ inventory-service","service":"main-nilecare","timestamp":"2025-10-18T15:21:31.592Z"}
+{"environment":"development","level":"info","message":"   ✅ facility-service","service":"main-nilecare","timestamp":"2025-10-18T15:21:31.593Z"}
+{"environment":"development","level":"info","message":"   ✅ fhir-service","service":"main-nilecare","timestamp":"2025-10-18T15:21:31.594Z"}
+{"environment":"development","level":"info","message":"   ✅ hl7-service","service":"main-nilecare","timestamp":"2025-10-18T15:21:31.594Z"}
+{"environment":"development","level":"info","message":"   ✅ device-integration-service","service":"main-nilecare","timestamp":"2025-10-18T15:21:31.594Z"}
+{"environment":"development","level":"info","message":"   ✅ notification-service","service":"main-nilecare","timestamp":"2025-10-18T15:21:31.595Z"}
+{"environment":"development","level":"info","message":"═══════════════════════════════════════════════════════","service":"main-nilecare","timestamp":"2025-10-18T15:21:31.596Z"}
+{"environment":"development","level":"warn","message":"⚠️  Redis cache not available - caching disabled","service":"main-nilecare","timestamp":"2025-10-18T15:21:42.527Z"}
+{"environment":"development","level":"info","message":"::1 - - [18/Oct/2025:15:22:05 +0000] \"GET /health HTTP/1.1\" 200 269 \"-\" \"Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) WindowsPowerShell/5.1.19041.6456\"","service":"main-nilecare","timestamp":"2025-10-18T15:22:05.029Z"}
+{"environment":"development","level":"info","message":"✅ Dashboard routes registered (service-client based)","service":"main-nilecare","timestamp":"2025-10-18T15:22:27.335Z"}
+{"environment":"development","level":"info","message":"═══════════════════════════════════════════════════════","service":"main-nilecare","timestamp":"2025-10-18T15:22:27.356Z"}
+{"environment":"development","level":"info","message":"🚀  MAIN NILECARE ORCHESTRATOR - UNIFIED GATEWAY","service":"main-nilecare","timestamp":"2025-10-18T15:22:27.367Z"}
+{"environment":"development","level":"info","message":"═══════════════════════════════════════════════════════","service":"main-nilecare","timestamp":"2025-10-18T15:22:27.397Z"}
+{"environment":"development","level":"info","message":"📡  Service URL:          http://localhost:7000","service":"main-nilecare","timestamp":"2025-10-18T15:22:27.399Z"}
+{"environment":"development","level":"info","message":"🏥  Health Check:         http://localhost:7000/health","service":"main-nilecare","timestamp":"2025-10-18T15:22:27.421Z"}
+{"environment":"development","level":"info","message":"📚  API Documentation:    http://localhost:7000/api-docs","service":"main-nilecare","timestamp":"2025-10-18T15:22:27.448Z"}
+{"environment":"development","level":"info","message":"📊  Services Status:      http://localhost:7000/api/v1/services/status","service":"main-nilecare","timestamp":"2025-10-18T15:22:27.458Z"}
+{"environment":"development","level":"info","message":"","service":"main-nilecare","timestamp":"2025-10-18T15:22:27.463Z"}
+{"environment":"development","level":"info","message":"✅  Architecture: UNIFIED ORCHESTRATOR (gateway-service integrated)","service":"main-nilecare","timestamp":"2025-10-18T15:22:27.481Z"}
+{"environment":"development","level":"info","message":"✅  Database: NONE (pure routing layer)","service":"main-nilecare","timestamp":"2025-10-18T15:22:27.498Z"}
+{"environment":"development","level":"info","message":"✅  Circuit Breakers: ENABLED","service":"main-nilecare","timestamp":"2025-10-18T15:22:27.528Z"}
+{"environment":"development","level":"info","message":"✅  Service Discovery: ENABLED","service":"main-nilecare","timestamp":"2025-10-18T15:22:27.534Z"}
+{"environment":"development","level":"info","message":"✅  Health-Based Routing: ENABLED","service":"main-nilecare","timestamp":"2025-10-18T15:22:27.546Z"}
+{"environment":"development","level":"info","message":"✅  Redis Caching: ENABLED","service":"main-nilecare","timestamp":"2025-10-18T15:22:27.548Z"}
+{"environment":"development","level":"info","message":"✅  Swagger Docs: ENABLED","service":"main-nilecare","timestamp":"2025-10-18T15:22:27.550Z"}
+{"environment":"development","level":"info","message":"✅  WebSocket Support: ENABLED","service":"main-nilecare","timestamp":"2025-10-18T15:22:27.551Z"}
+{"environment":"development","level":"info","message":"✨  Response Wrapper: ENABLED (Request ID propagation)","service":"main-nilecare","timestamp":"2025-10-18T15:22:27.565Z"}
+{"environment":"development","level":"info","message":"","service":"main-nilecare","timestamp":"2025-10-18T15:22:27.576Z"}
+{"environment":"development","level":"info","message":"🔗  Downstream Services:","service":"main-nilecare","timestamp":"2025-10-18T15:22:27.591Z"}
+{"environment":"development","level":"info","message":"   ✅ auth-service","service":"main-nilecare","timestamp":"2025-10-18T15:22:27.601Z"}
+{"environment":"development","level":"info","message":"   ✅ business-service","service":"main-nilecare","timestamp":"2025-10-18T15:22:27.616Z"}
+{"environment":"development","level":"info","message":"   ✅ clinical-service","service":"main-nilecare","timestamp":"2025-10-18T15:22:27.625Z"}
+{"environment":"development","level":"info","message":"   ✅ appointment-service","service":"main-nilecare","timestamp":"2025-10-18T15:22:27.632Z"}
+{"environment":"development","level":"info","message":"   ✅ payment-service","service":"main-nilecare","timestamp":"2025-10-18T15:22:27.643Z"}
+{"environment":"development","level":"info","message":"   ✅ billing-service","service":"main-nilecare","timestamp":"2025-10-18T15:22:27.664Z"}
+{"environment":"development","level":"info","message":"   ✅ medication-service","service":"main-nilecare","timestamp":"2025-10-18T15:22:27.692Z"}
+{"environment":"development","level":"info","message":"   ✅ lab-service","service":"main-nilecare","timestamp":"2025-10-18T15:22:27.696Z"}
+{"environment":"development","level":"info","message":"   ✅ inventory-service","service":"main-nilecare","timestamp":"2025-10-18T15:22:27.697Z"}
+{"environment":"development","level":"info","message":"   ✅ facility-service","service":"main-nilecare","timestamp":"2025-10-18T15:22:27.705Z"}
+{"environment":"development","level":"info","message":"   ✅ fhir-service","service":"main-nilecare","timestamp":"2025-10-18T15:22:27.707Z"}
+{"environment":"development","level":"info","message":"   ✅ hl7-service","service":"main-nilecare","timestamp":"2025-10-18T15:22:27.708Z"}
+{"environment":"development","level":"info","message":"   ✅ device-integration-service","service":"main-nilecare","timestamp":"2025-10-18T15:22:27.708Z"}
+{"environment":"development","level":"info","message":"   ✅ notification-service","service":"main-nilecare","timestamp":"2025-10-18T15:22:27.709Z"}
+{"environment":"development","level":"info","message":"═══════════════════════════════════════════════════════","service":"main-nilecare","timestamp":"2025-10-18T15:22:27.710Z"}
+{"environment":"development","level":"warn","message":"⚠️  Redis cache not available - caching disabled","service":"main-nilecare","timestamp":"2025-10-18T15:22:38.670Z"}
+{"environment":"development","level":"info","message":"✅ Dashboard routes registered (service-client based)","service":"main-nilecare","timestamp":"2025-10-18T15:36:50.939Z"}
+{"environment":"development","level":"info","message":"═══════════════════════════════════════════════════════","service":"main-nilecare","timestamp":"2025-10-18T15:36:51.002Z"}
+{"environment":"development","level":"info","message":"🚀  MAIN NILECARE ORCHESTRATOR - UNIFIED GATEWAY","service":"main-nilecare","timestamp":"2025-10-18T15:36:51.140Z"}
+{"environment":"development","level":"info","message":"═══════════════════════════════════════════════════════","service":"main-nilecare","timestamp":"2025-10-18T15:36:51.221Z"}
+{"environment":"development","level":"info","message":"📡  Service URL:          http://localhost:7000","service":"main-nilecare","timestamp":"2025-10-18T15:36:51.291Z"}
+{"environment":"development","level":"info","message":"🏥  Health Check:         http://localhost:7000/health","service":"main-nilecare","timestamp":"2025-10-18T15:36:51.342Z"}
+{"environment":"development","level":"info","message":"📚  API Documentation:    http://localhost:7000/api-docs","service":"main-nilecare","timestamp":"2025-10-18T15:36:51.426Z"}
+{"environment":"development","level":"info","message":"📊  Services Status:      http://localhost:7000/api/v1/services/status","service":"main-nilecare","timestamp":"2025-10-18T15:36:51.455Z"}
+{"environment":"development","level":"info","message":"","service":"main-nilecare","timestamp":"2025-10-18T15:36:51.460Z"}
+{"environment":"development","level":"info","message":"✅  Architecture: UNIFIED ORCHESTRATOR (gateway-service integrated)","service":"main-nilecare","timestamp":"2025-10-18T15:36:51.486Z"}
+{"environment":"development","level":"info","message":"✅  Database: NONE (pure routing layer)","service":"main-nilecare","timestamp":"2025-10-18T15:36:51.526Z"}
+{"environment":"development","level":"info","message":"✅  Circuit Breakers: ENABLED","service":"main-nilecare","timestamp":"2025-10-18T15:36:51.590Z"}
+{"environment":"development","level":"info","message":"✅  Service Discovery: ENABLED","service":"main-nilecare","timestamp":"2025-10-18T15:36:51.634Z"}
+{"environment":"development","level":"info","message":"✅  Health-Based Routing: ENABLED","service":"main-nilecare","timestamp":"2025-10-18T15:36:51.684Z"}
+{"environment":"development","level":"info","message":"✅  Redis Caching: ENABLED","service":"main-nilecare","timestamp":"2025-10-18T15:36:51.771Z"}
+{"environment":"development","level":"info","message":"✅  Swagger Docs: ENABLED","service":"main-nilecare","timestamp":"2025-10-18T15:36:51.929Z"}
+{"environment":"development","level":"info","message":"✅  WebSocket Support: ENABLED","service":"main-nilecare","timestamp":"2025-10-18T15:36:52.001Z"}
+{"environment":"development","level":"info","message":"✨  Response Wrapper: ENABLED (Request ID propagation)","service":"main-nilecare","timestamp":"2025-10-18T15:36:52.184Z"}
+{"environment":"development","level":"info","message":"","service":"main-nilecare","timestamp":"2025-10-18T15:36:52.269Z"}
+{"environment":"development","level":"info","message":"🔗  Downstream Services:","service":"main-nilecare","timestamp":"2025-10-18T15:36:52.323Z"}
+{"environment":"development","level":"info","message":"   ✅ auth-service","service":"main-nilecare","timestamp":"2025-10-18T15:36:52.369Z"}
+{"environment":"development","level":"info","message":"   ✅ business-service","service":"main-nilecare","timestamp":"2025-10-18T15:36:52.423Z"}
+{"environment":"development","level":"info","message":"   ✅ clinical-service","service":"main-nilecare","timestamp":"2025-10-18T15:36:52.503Z"}
+{"environment":"development","level":"info","message":"   ✅ appointment-service","service":"main-nilecare","timestamp":"2025-10-18T15:36:52.537Z"}
+{"environment":"development","level":"info","message":"   ✅ payment-service","service":"main-nilecare","timestamp":"2025-10-18T15:36:52.577Z"}
+{"environment":"development","level":"info","message":"   ✅ billing-service","service":"main-nilecare","timestamp":"2025-10-18T15:36:52.623Z"}
+{"environment":"development","level":"info","message":"   ✅ medication-service","service":"main-nilecare","timestamp":"2025-10-18T15:36:52.655Z"}
+{"environment":"development","level":"info","message":"   ✅ lab-service","service":"main-nilecare","timestamp":"2025-10-18T15:36:52.693Z"}
+{"environment":"development","level":"info","message":"   ✅ inventory-service","service":"main-nilecare","timestamp":"2025-10-18T15:36:52.703Z"}
+{"environment":"development","level":"info","message":"   ✅ facility-service","service":"main-nilecare","timestamp":"2025-10-18T15:36:52.731Z"}
+{"environment":"development","level":"info","message":"   ✅ fhir-service","service":"main-nilecare","timestamp":"2025-10-18T15:36:52.761Z"}
+{"environment":"development","level":"info","message":"   ✅ hl7-service","service":"main-nilecare","timestamp":"2025-10-18T15:36:52.804Z"}
+{"environment":"development","level":"info","message":"   ✅ device-integration-service","service":"main-nilecare","timestamp":"2025-10-18T15:36:52.844Z"}
+{"environment":"development","level":"info","message":"   ✅ notification-service","service":"main-nilecare","timestamp":"2025-10-18T15:36:52.864Z"}
+{"environment":"development","level":"info","message":"═══════════════════════════════════════════════════════","service":"main-nilecare","timestamp":"2025-10-18T15:36:52.890Z"}
+{"environment":"development","level":"warn","message":"⚠️  Redis cache not available - caching disabled","service":"main-nilecare","timestamp":"2025-10-18T15:37:09.433Z"}

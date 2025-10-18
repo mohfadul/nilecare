@@ -8,7 +8,7 @@
 import { Router, Request, Response } from 'express';
 import crypto from 'crypto';
 import axios from 'axios';
-import { authenticate } from '../../../../shared/middleware/auth';
+import { authenticate } from '../middleware/authentication';
 
 const router = Router();
 
